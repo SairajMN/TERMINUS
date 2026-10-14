@@ -1,0 +1,96 @@
+{
+  "version": "1.0.0",
+  "name": "default",
+  "hard_deny": [
+    { "pattern": "(^|\\s)(sudo|doas)\\b", "reason": "privilege escalation" },
+    {
+      "pattern": "\\brm\\s+(-[a-zA-Z]*r[a-zA-Z]*f|-[a-zA-Z]*f[a-zA-Z]*r)[a-zA-Z]*\\b",
+      "reason": "recursive force delete"
+    },
+    {
+      "pattern": "\\brm\\s+(-[a-zA-Z]+\\s+)*['\"]?(\\.\\.?/|~|/(etc|usr|var|bin|sbin|boot|home|root|Users|Library|Applications)\\b)",
+      "reason": "deletes outside a contained path"
+    },
+    {
+      "pattern": "\\bgit\\s+push\\s+(.*\\s)?(-f\\b|--force\\b)",
+      "reason": "force push rewrites remote history"
+    },
+    { "pattern": "\\bgit\\s+reset\\s+--hard\\b", "reason": "discards uncommitted work" },
+    {
+      "pattern": "\\bgit\\s+clean\\s+(-[a-z]*f|[a-z]*\\s-[a-z]*f)",
+      "reason": "deletes untracked files irreversibly"
+    },
+    { "pattern": "\\bgit\\s+stash\\s+clear\\b", "reason": "drops stashed changes unrecoverably" },
+    {
+      "pattern": "\\bgit\\s+branch\\s+(-D\\b|-d\\s+[\"']?\\S+[\"']?\\s*$)",
+      "reason": "deletes a branch"
+    },
+    {
+      "pattern": "(^|\\s)/\\.ssh/(id_|config|known_hosts)|~/.ssh/(id_|config|known_hosts)",
+      "reason": "reads SSH identity material"
+    },
+    {
+      "pattern": "/\\.aws/credentials|/\\.config/gcloud/|/\\.kube/config|/\\.docker/config\\.json|/\\.netrc|/\\.git-credentials",
+      "reason": "reads cloud or registry credentials"
+    },
+    {
+      "pattern": "\\.(env)\\b(\\.example|\\.sample|\\.template)?(\\s|['\"\\|=]|$)",
+      "reason": "touches a secrets file"
+    },
+    {
+      "pattern": "(sk|rk)_(live|test)_[A-Za-z0-9]{8,}|\\bsk-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|\\bghp_[A-Za-z0-9]{36}",
+      "reason": "carries a live secret on the command line"
+    },
+    {
+      "pattern": "\\b(curl|wget)\\b[^|;]*\\|\\s*(ba|z|fi)?sh\\b",
+      "reason": "pipes a remote script into a shell"
+    },
+    {
+      "pattern": "\\b(env|printenv|set)\\b[^|;&]*\\|\\s*(curl|wget|nc|ncat)\\b",
+      "reason": "exfiltrates the process environment"
+    },
+    {
+      "pattern": "\\bhistory\\b[^|;&]*\\|\\s*(curl|wget|nc)\\b",
+      "reason": "exfiltrates shell history"
+    },
+    { "pattern": ":\\(\\)\\s*\\{\\s*:\\|:\\s*&\\s*\\}\\s*;\\s*:", "reason": "fork bomb" },
+    { "pattern": "\\bdd\\s+[^|]*\\bof=/dev/", "reason": "writes directly to a device" },
+    {
+      "pattern": "\\b(mkfs|shutdown|reboot|halt|poweroff)\\b",
+      "reason": "destructive system operation"
+    },
+    {
+      "pattern": "\\bnpm\\s+publish\\b|\\byarn\\s+publish\\b|\\bpnpm\\s+publish\\b",
+      "reason": "publishes a package publicly"
+    },
+    {
+      "pattern": "\\bgh\\s+(release|repo\\s+delete)\\b|\\bdocker\\s+push\\b",
+      "reason": "publishes artifacts outside the workspace"
+    }
+  ],
+  "fast_path": [
+    {
+      "pattern": "^\\s*(ls|pwd|cat|head|tail|wc|tree|file|stat|which|du|df|date|whoami)\\b",
+      "tier": "read"
+    },
+    {
+      "pattern": "^\\s*git\\s+(status|diff|log|show|branch(\\s+--list)?|remote\\s+-v|ls-files|blame)\\b",
+      "tier": "read"
+    },
+    { "pattern": "^\\s*(grep|rg|find|fd|which|echo)\\b", "tier": "read" },
+    {
+      "pattern": "^\\s*(node|python3?|npm|bun|deno|cargo|go|java|ruby|php)\\s+([^\\s]+\\s+)*(-v|--version)\\b",
+      "tier": "read"
+    },
+    { "pattern": "^\\s*(mkdir|touch|cp|mv)\\s+(\\.?\\.?/|[\\w.@+-])", "tier": "modify" },
+    {
+      "pattern": "^\\s*(npm|pnpm|yarn|bun)\\s+(run\\s+)?(test|tests|lint|typecheck|check|build|format)\\b",
+      "tier": "modify"
+    },
+    {
+      "pattern": "^\\s*(bun\\s+test|pytest|vitest|jest|mypy|ruff|eslint|tsc|make)\\b",
+      "tier": "modify"
+    },
+    { "pattern": "^\\s*git\\s+(add|commit)(\\s|$)", "tier": "modify" }
+  ]
+}
