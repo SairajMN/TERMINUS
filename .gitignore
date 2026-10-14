@@ -1,0 +1,12 @@
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+.DS_Store
+.terminus/
+*.db
+*.db-journal
+.env
+.env.*
+!.env.example

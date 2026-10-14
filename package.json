@@ -1,0 +1,25 @@
+{
+  "name": "terminus",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "terminus": "bun apps/cli/src/main.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "fix": "biome check --write ."
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.134.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.15",
+    "@terminus/permission-engine": "workspace:*",
+    "@types/bun": "^1.4.3",
+    "typescript": "^7.0.2"
+  }
+}
