@@ -7,6 +7,7 @@ export type Mode = "ask" | "plan" | "act" | "auto";
 export interface ToolContext {
   workspaceRoot: string;
   signal: AbortSignal;
+  commandTimeoutMs?: number;
 }
 
 export interface ToolResult {

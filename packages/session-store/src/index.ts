@@ -80,6 +80,16 @@ export class SessionStore {
       .all(workspace, limit) as SessionRow[];
   }
 
+  sessionById(id: string): SessionRow | undefined {
+    const exact = this.db.query("SELECT * FROM sessions WHERE id = ?").get(id) as
+      | SessionRow
+      | undefined;
+    if (exact) return exact;
+    return this.db.query("SELECT * FROM sessions WHERE id LIKE ? LIMIT 1").get(`${id}%`) as
+      | SessionRow
+      | undefined;
+  }
+
   eventsOf(sessionId: string): EventRow[] {
     return this.db
       .query("SELECT at, type, payload FROM events WHERE session_id = ? ORDER BY id")

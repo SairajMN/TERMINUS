@@ -238,7 +238,9 @@ export const runShell: ToolDefinition<{ command: string; timeout_seconds?: numbe
     const result = await runCommand(input.command, {
       cwd: ctx.workspaceRoot,
       signal: ctx.signal,
-      timeoutMs: (input.timeout_seconds ?? 60) * 1000,
+      timeoutMs: input.timeout_seconds
+        ? input.timeout_seconds * 1000
+        : (ctx.commandTimeoutMs ?? 60_000),
     });
     const header = result.timedOut ? "[timed out]\n" : "";
     const footer = result.truncated ? "\n\n[output truncated]" : "";
