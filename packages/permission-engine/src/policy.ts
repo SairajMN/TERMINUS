@@ -24,6 +24,7 @@ export interface Policy {
 const MODE_TIERS: Record<Mode, readonly PermissionTier[]> = {
   ask: ["read"],
   plan: ["read"],
+  audit: ["read"],
   act: ["read", "modify"],
   auto: ["read", "modify"],
 };

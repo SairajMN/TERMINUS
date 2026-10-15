@@ -51,7 +51,7 @@ export const firstRun = (): string =>
     '    bun run terminus --mode ask "what does src/billing do?"',
     "",
     `  ${accent("FLAGS")}`,
-    "    --mode ask | plan | act | auto     default act: plan, approve, edit",
+    "    --mode ask|plan|audit|act|auto    default act: plan, approve, edit, review",
     "    --yes                             approve low-risk actions without asking",
     '    --verify "cmd1,cmd2"              checks to run at the end',
     "    --model <id>                      model override",
@@ -59,11 +59,13 @@ export const firstRun = (): string =>
     "    --report json                     machine-readable report on stdout",
     "    --timeout <sec>                   per-command timeout override",
     "    --sessions                        list recent sessions for this workspace",
+    "    --debt                            list shortcut: comments on record",
     "    --resume <id>                     continue with an earlier session's context",
     "",
     `  ${accent("INTERACTIVE")}`,
     "    Run with no task for a session REPL: multiple tasks share context.",
-    "    /clear resets it, /sessions lists stored runs, /quit exits.",
+    "    /clear resets it, /sessions lists stored runs, /debt shows the",
+    "    shortcut: ledger, /quit exits.",
     "    Approval prompts accept [a]lways to remember a command this session.",
     "",
     `  ${accent("SAFETY")}`,
@@ -84,6 +86,7 @@ const STATE_LABEL: Record<TaskState, string> = {
   awaiting_approval: "awaiting approval",
   implementing: "implementing",
   verifying: "verifying",
+  reviewing: "reviewing",
   failed_check: "check failed",
   diagnosing: "diagnosing",
   completed: "completed",
@@ -149,6 +152,12 @@ export const printReport = (report: CompletionReport): void => {
     for (const check of report.checks) {
       out.write(`    ${check.passed ? ok("[pass]") : err("[fail]")} ${ink(check.command)}\n`);
     }
+  }
+  if (report.review) {
+    const mark = report.review.verdict === "clear" ? ok : warn;
+    process.stdout.write(
+      `\n  ${muted("review")} ${mark(report.review.verdict)} · ${ink(report.review.summary.split("\n")[0] ?? "")}\n`,
+    );
   }
   if (report.tokens) {
     out.write(

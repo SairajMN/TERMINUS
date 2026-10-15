@@ -5,6 +5,7 @@ export type TaskState =
   | "awaiting_approval"
   | "implementing"
   | "verifying"
+  | "reviewing"
   | "failed_check"
   | "diagnosing"
   | "completed"
@@ -16,7 +17,8 @@ const TRANSITIONS: Record<TaskState, readonly TaskState[]> = {
   planning: ["awaiting_approval", "cancelled"],
   awaiting_approval: ["implementing", "planning", "cancelled"],
   implementing: ["verifying", "failed_check", "cancelled"],
-  verifying: ["completed", "failed_check", "cancelled"],
+  verifying: ["reviewing", "completed", "failed_check", "cancelled"],
+  reviewing: ["completed", "diagnosing", "cancelled"],
   failed_check: ["diagnosing", "completed", "cancelled"],
   diagnosing: ["implementing", "cancelled"],
   completed: [],

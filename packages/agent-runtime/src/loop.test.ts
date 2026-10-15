@@ -74,6 +74,7 @@ describe("agent loop", () => {
       "awaiting_approval",
       "implementing",
       "verifying",
+      "reviewing",
       "completed",
     ]);
 

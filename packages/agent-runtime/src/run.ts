@@ -22,6 +22,7 @@ import { buildSystemPrompt, buildTaskMessage } from "./prompt";
 const MAX_ITERATIONS = 30;
 const MAX_REPLAN_ATTEMPTS = 3;
 const MAX_VERIFY_CYCLES = 2;
+const MAX_REVIEW_CYCLES = 1;
 const RESULT_CHAR_BUDGET = 12_000;
 const OUTPUT_CHAR_BUDGET = 8_000;
 const READ_ONLY_TOOLS = new Set(["list_dir", "read_file", "search", "git_status", "git_diff"]);
@@ -112,6 +113,7 @@ export function createAgent(options: RunTaskOptions): AgentSession {
     const commands: string[] = [];
     const maxIterations = options.maxIterations ?? MAX_ITERATIONS;
     const tokens = { prompt: 0, completion: 0 };
+    let finalReview: CompletionReport["review"];
 
     const executeTool = async (call: {
       id: string;
@@ -334,6 +336,27 @@ export function createAgent(options: RunTaskOptions): AgentSession {
       return checks;
     };
 
+    const runReview = async (): Promise<{ verdict: "clear" | "issues"; findings: string }> => {
+      messages.push({
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: `Post-change review for this task: ${task}\n\nUse git_diff and read the files you changed. Look for bugs, security problems, risky code without a test, performance issues, and anything contradicting the acceptance criteria. Start each finding line with - blocker: or - major: or - minor:. If nothing is at blocker or major level, end your reply with exactly: verdict: clear`,
+          },
+        ],
+      });
+      const findings = clip(
+        (await runTurn(tools.filter((tool) => tool.tier === "read"))).trim(),
+        4_000,
+      );
+      const verdict = /-\s*(blocker|major):/i.test(findings)
+        ? ("issues" as const)
+        : ("clear" as const);
+      finalReview = { verdict, summary: findings };
+      return { verdict, findings };
+    };
+
     const finalize = (completion: CompletionReport): CompletionReport => {
       emit({ type: "report", report: completion });
       if (sessionId) options.store?.logReport(sessionId, completion);
@@ -357,6 +380,7 @@ export function createAgent(options: RunTaskOptions): AgentSession {
         commands,
         checks,
         tokens: tokens.prompt + tokens.completion > 0 ? { ...tokens } : undefined,
+        review: finalReview,
       });
     };
 
@@ -405,6 +429,10 @@ export function createAgent(options: RunTaskOptions): AgentSession {
         await runTurn(readTools);
         return finish("completed", "Answered.");
       }
+      if (mode === "audit") {
+        await runTurn(readTools);
+        return finish("completed", "Audit produced.");
+      }
 
       state("planning");
       let plan = await runTurn(readTools);
@@ -449,29 +477,51 @@ export function createAgent(options: RunTaskOptions): AgentSession {
       state("implementing");
       let checks: CheckResult[] = [];
       let cycles = 0;
+      let reviewCycles = 0;
       while (true) {
         await runTurn(tools);
         state("verifying");
         checks = await runVerification();
         const failedNow = checks.filter((check) => !check.passed);
-        if (failedNow.length === 0 || cycles >= MAX_VERIFY_CYCLES) break;
-        cycles++;
-        state("failed_check");
-        state("diagnosing");
-        messages.push({
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: `Verification failed:\n\n${failedNow
-                .map((check) => `$ ${check.command}\n${check.output}`)
-                .join(
-                  "\n\n",
-                )}\n\nFix the root cause, keep changes minimal, then stop so verification can run again.`,
-            },
-          ],
-        });
-        state("implementing");
+        if (failedNow.length > 0) {
+          if (cycles >= MAX_VERIFY_CYCLES) break;
+          cycles++;
+          state("failed_check");
+          state("diagnosing");
+          messages.push({
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: `Verification failed:\n\n${failedNow
+                  .map((check) => `$ ${check.command}\n${check.output}`)
+                  .join(
+                    "\n\n",
+                  )}\n\nFix the root cause, keep changes minimal, then stop so verification can run again.`,
+              },
+            ],
+          });
+          state("implementing");
+          continue;
+        }
+        state("reviewing");
+        const review = await runReview();
+        if (review.verdict === "issues" && reviewCycles < MAX_REVIEW_CYCLES) {
+          reviewCycles++;
+          state("diagnosing");
+          messages.push({
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: `Your post-change review found issues:\n\n${review.findings}\n\nFix the blockers and majors, keep the changes minimal, then stop so verification and review can run again.`,
+              },
+            ],
+          });
+          state("implementing");
+          continue;
+        }
+        break;
       }
       const failed = checks.filter((check) => !check.passed);
       if (failed.length > 0) {

@@ -2,7 +2,7 @@ import type { z } from "zod";
 
 export type PermissionTier = "read" | "modify" | "high_impact";
 
-export type Mode = "ask" | "plan" | "act" | "auto";
+export type Mode = "ask" | "plan" | "audit" | "act" | "auto";
 
 export interface ToolContext {
   workspaceRoot: string;

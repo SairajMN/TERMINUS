@@ -14,6 +14,7 @@ export interface CompletionReport {
   commands: string[];
   checks: CheckResult[];
   tokens?: { prompt: number; completion: number };
+  review?: { verdict: "clear" | "issues"; summary: string };
 }
 
 export type AgentEvent =
