@@ -88,6 +88,20 @@ turn off is not a rule.
 | Append-only audit log of every tool decision and approval | `session-store` |
 | Cancellation: Ctrl-C aborts the in-flight model call and child processes | `agent-runtime` |
 
+## Network tools
+
+`web_research` is the only tool that leaves the machine:
+
+- It calls one fixed endpoint (`https://api.tavily.com/search`) with the
+  `TAVILY_API_KEY` from the environment; the model only supplies a query
+  string and optional domain filters — never a URL, header, or shell command.
+- Its results are stored and returned as `untrusted` evidence. They never
+  reach the permission engine, so a search result cannot authorize an action
+  or alter policy.
+- Output passes through secret redaction like every other tool result.
+- With no key configured the tool reports "disabled" instead of failing the
+  task.
+
 ## Known limits
 
 - The gate is regex policy plus mode enforcement. It stops mistakes and

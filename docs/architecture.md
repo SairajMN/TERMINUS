@@ -121,17 +121,60 @@ flowchart LR
 
 ## Model gateway
 
-`ModelGateway.complete(request, signal)` returns an async stream of `text` and
-`tool_use` events. Providers implement the same interface:
+`ModelGateway.complete(request, signal)` returns an async stream of `text`,
+`tool_use`, and `usage` events. Providers implement the same interface:
 
-- `anthropicGateway` — streaming Messages API with tool-use block assembly;
-  model selectable via flag or `ANTHROPIC_MODEL`.
-- `mockGateway` — scripted responses that record every request; this is what
-  the end-to-end loop tests use, so the full agent path is exercised without
-  a network.
+- `nebiusGateway` — Nebius Token Factory (OpenAI-compatible) streaming with
+  `tool_calls` argument-delta assembly; Nemotron models, 3 automatic retries.
+- `anthropicGateway` — streaming Messages API with tool-use block assembly.
+- `mockGateway` — scripted responses that record every request (snapshot);
+  the end-to-end tests use it, so the full agent path runs without a network.
+
+Selection is environment-driven via `selectGateway()`:
+
+```mermaid
+flowchart LR
+    E[NEBIUS_API_KEY set?] -- yes --> N[nebiusGateway<br/>nvidia/nemotron-3-super-120b-a12b]
+    E -- no --> A[anthropicGateway]
+    F[--provider / --model flags] --> G[override]
+    G --> N
+    G --> A
+    N --> R[ModelGateway]
+    A --> R
+    M[mockGateway] --> R
+```
 
 Adding another provider means implementing one function. Nothing else in the
 runtime changes.
+
+## Research flow (Tavily)
+
+`web_research` is a read-tier tool: it is visible while planning, never maps
+to a shell action, and its output is stored as **untrusted** evidence with
+URLs preserved. The plan directive requires `[title](url)` citations for any
+research used.
+
+```mermaid
+sequenceDiagram
+    participant M as Model
+    participant R as agent-runtime
+    participant T as web_research
+    participant V as Tavily API
+    participant E as EvidenceStore
+
+    M->>R: tool_use web_research(query)
+    R->>R: actionFor -> null (not a shell action)
+    R->>T: execute
+    T->>V: POST api.tavily.com/search (Bearer)
+    V-->>T: results (title, url, content)
+    T-->>R: numbered excerpts (redacted)
+    R->>E: add as documentation, trust=untrusted
+    R-->>M: tool_result with URLs
+    M->>R: plan citing [title](url)
+```
+
+Search results are data: they never reach the permission engine and cannot
+authorize a command.
 
 ## Contracts (`@terminus/shared`)
 
