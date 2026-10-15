@@ -12,14 +12,30 @@ prose. Powered by NVIDIA Nemotron models on Nebius Token Factory.
 research → map → plan → approve → edit → run checks → (fail → diagnose → fix) → report
 ```
 
-## Quick start
+## Install
+
+One command, either package manager (Node 22.5+; bun works too):
+
+```bash
+npm install -g terminus-agent     # provides the `terminus` command
+# or
+bun install -g terminus-agent
+```
+
+Put your keys once, and terminus works from **any** project folder:
+
+```bash
+mkdir -p ~/.terminus && cat > ~/.terminus/.env <<'EOF'
+NEBIUS_API_KEY=...      # tokenfactory.nebius.com (code NEBIUS-DEVPOST-GLOBAL26)
+TAVILY_API_KEY=tvly-... # optional deep research
+EOF
+```
+
+## Quick start (from source)
 
 ```bash
 bun install
-cp .env.example .env        # then paste your keys
-
-# get a key at https://tokenfactory.nebius.com  (code NEBIUS-DEVPOST-GLOBAL26)
-NEBIUS_API_KEY=...
+cp .env.example .env        # or use ~/.terminus/.env as above
 
 bun run terminus "add input validation to the signup form"
 bun run terminus            # interactive session REPL
@@ -27,7 +43,8 @@ bun run terminus --mode plan "how should we structure the API client?"
 bun run terminus --mode ask  "what does src/billing do?"
 ```
 
-Requires [Bun](https://bun.sh) 1.2+.
+Requires [Bun](https://bun.sh) 1.2+ for source runs; the published package
+needs Node 22.5+.
 
 ## How Nemotron powers TERMINUS
 
