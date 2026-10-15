@@ -1,9 +1,49 @@
-import { Database } from "bun:sqlite";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
+import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import type { CompletionReport, TaskState } from "@terminus/shared";
+
+interface SqlStatement {
+  run(...params: unknown[]): unknown;
+  get(...params: unknown[]): unknown;
+  all(...params: unknown[]): unknown;
+}
+
+interface SqlDatabase {
+  exec(sql: string): void;
+  query(sql: string): SqlStatement;
+  close(): void;
+}
+
+// Node >= 22.5 ships node:sqlite; Bun ships bun:sqlite. Prefer node's so the
+// same code runs under both runtimes, fall back for Bun.
+const openDatabase = (file: string): SqlDatabase => {
+  const req = createRequire(import.meta.url);
+  try {
+    const { DatabaseSync } = req("node:sqlite") as {
+      DatabaseSync: new (
+        path: string,
+      ) => {
+        exec(sql: string): void;
+        prepare(sql: string): SqlStatement;
+        close(): void;
+      };
+    };
+    const db = new DatabaseSync(file);
+    return {
+      exec: (sql) => db.exec(sql),
+      query: (sql) => db.prepare(sql),
+      close: () => db.close(),
+    };
+  } catch {
+    const { Database } = req("bun:sqlite") as {
+      Database: new (path: string) => SqlDatabase;
+    };
+    return new Database(file);
+  }
+};
 
 export interface SessionRow {
   id: string;
@@ -21,12 +61,12 @@ export interface EventRow {
 }
 
 export class SessionStore {
-  private readonly db: Database;
+  private readonly db: SqlDatabase;
 
   constructor(path?: string) {
     const file = path ?? join(homedir(), ".terminus", "terminus.db");
     mkdirSync(dirname(file), { recursive: true });
-    this.db = new Database(file);
+    this.db = openDatabase(file);
     this.db.exec(`
       PRAGMA journal_mode = WAL;
       PRAGMA busy_timeout = 5000;
