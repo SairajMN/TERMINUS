@@ -36,6 +36,7 @@
         "@terminus/context-engine": "workspace:*",
         "@terminus/model-gateway": "workspace:*",
         "@terminus/permission-engine": "workspace:*",
+        "@terminus/research": "workspace:*",
         "@terminus/session-store": "workspace:*",
         "@terminus/shared": "workspace:*",
         "@terminus/tool-runtime": "workspace:*",
@@ -61,6 +62,15 @@
       "version": "0.1.0",
       "dependencies": {
         "@terminus/shared": "workspace:*",
+      },
+    },
+    "packages/research": {
+      "name": "@terminus/research",
+      "version": "0.1.0",
+      "dependencies": {
+        "@terminus/shared": "workspace:*",
+        "@terminus/tool-runtime": "workspace:*",
+        "zod": "^4.6.7",
       },
     },
     "packages/session-store": {
@@ -122,6 +132,8 @@
     "@terminus/model-gateway": ["@terminus/model-gateway@workspace:packages/model-gateway"],
 
     "@terminus/permission-engine": ["@terminus/permission-engine@workspace:packages/permission-engine"],
+
+    "@terminus/research": ["@terminus/research@workspace:packages/research"],
 
     "@terminus/session-store": ["@terminus/session-store@workspace:packages/session-store"],
 

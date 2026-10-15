@@ -1,18 +1,38 @@
-import { describe, expect, it } from "bun:test";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadConfig } from "./config";
 
+const userFile = join(homedir(), ".terminus", "config.json");
+const created: string[] = [];
+let originalUserConfig: string | null = null;
+
+const makeProject = (): string => {
+  const dir = mkdtempSync(join(tmpdir(), "terminus-cfg-"));
+  created.push(dir);
+  return dir;
+};
+
+beforeEach(() => {
+  originalUserConfig = existsSync(userFile) ? readFileSync(userFile, "utf8") : null;
+});
+
+afterEach(() => {
+  for (const dir of created.splice(0)) rmSync(dir, { recursive: true, force: true });
+  if (originalUserConfig !== null) {
+    writeFileSync(userFile, originalUserConfig);
+  } else if (existsSync(userFile)) {
+    rmSync(userFile);
+  }
+});
+
 describe("config loading", () => {
   it("merges user and project config with project winning", () => {
-    const userDir = join(homedir(), ".terminus");
-    const userFile = join(userDir, "config.json");
-    const hadUser = expectNoThrowRead(userFile);
-    mkdirSync(userDir, { recursive: true });
+    mkdirSync(join(homedir(), ".terminus"), { recursive: true });
     writeFileSync(userFile, JSON.stringify({ mode: "plan", model: "user-model" }));
 
-    const project = mkdtempSync(join(import.meta.dir, "cfg-"));
+    const project = makeProject();
     mkdirSync(join(project, ".terminus"));
     writeFileSync(
       join(project, ".terminus", "config.json"),
@@ -23,26 +43,9 @@ describe("config loading", () => {
     expect(config.mode).toBe("plan");
     expect(config.model).toBe("project-model");
     expect(config.verify).toEqual(["npm test"]);
-
-    if (hadUser) writeFileSync(userFile, hadUser);
-    else {
-      try {
-        writeFileSync(userFile, "");
-        require("node:fs").rmSync(userFile);
-      } catch {}
-    }
   });
 
   it("returns empty config when nothing exists", () => {
-    const project = mkdtempSync(join(import.meta.dir, "cfg-empty-"));
-    expect(loadConfig(project)).toEqual({});
+    expect(loadConfig(makeProject())).toEqual({});
   });
 });
-
-function expectNoThrowRead(path: string): string | null {
-  try {
-    return require("node:fs").readFileSync(path, "utf8");
-  } catch {
-    return null;
-  }
-}

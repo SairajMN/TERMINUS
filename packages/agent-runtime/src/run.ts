@@ -4,6 +4,7 @@ import { buildRepoMap, EvidenceStore, loadInstructions } from "@terminus/context
 import type { ChatMessage, ContentPart, ModelGateway } from "@terminus/model-gateway";
 import { toToolSpecs } from "@terminus/model-gateway";
 import { PermissionEngine } from "@terminus/permission-engine";
+import { webResearch } from "@terminus/research";
 import type { SessionStore } from "@terminus/session-store";
 import {
   type Approver,
@@ -104,7 +105,7 @@ export function createAgent(options: RunTaskOptions): AgentSession {
     };
 
     const engine = new PermissionEngine({ workspaceRoot: root, mode: "plan" });
-    const tools = createTools();
+    const tools = [...createTools(), webResearch as unknown as ToolDefinition<never>];
     const toolByName = new Map(tools.map((tool) => [tool.name, tool]));
     const changedFiles = new Set<string>();
     const commands: string[] = [];
@@ -173,6 +174,15 @@ export function createAgent(options: RunTaskOptions): AgentSession {
       if (action?.kind === "file_write" && result.ok) {
         changedFiles.add(action.path);
         evidence.invalidate(action.path);
+      }
+      if (call.name === "web_research" && result.ok) {
+        evidence.add({
+          kind: "documentation",
+          source: `web research: ${String((parsed.data as { query?: string }).query ?? "")}`,
+          content: result.output,
+          trustLevel: "untrusted",
+          relevance: 0.7,
+        });
       }
       if (action?.kind === "file_read" && call.name === "read_file" && result.ok) {
         try {

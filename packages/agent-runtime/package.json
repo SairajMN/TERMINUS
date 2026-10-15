@@ -8,6 +8,7 @@
     "@terminus/context-engine": "workspace:*",
     "@terminus/model-gateway": "workspace:*",
     "@terminus/permission-engine": "workspace:*",
+    "@terminus/research": "workspace:*",
     "@terminus/session-store": "workspace:*",
     "@terminus/shared": "workspace:*",
     "@terminus/tool-runtime": "workspace:*",

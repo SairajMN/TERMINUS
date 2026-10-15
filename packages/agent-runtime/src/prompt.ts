@@ -24,7 +24,7 @@ export const buildTaskMessage = (
       ? "Answer the question using read-only tools. Do not propose changes."
       : mode === "plan"
         ? "Produce an implementation plan: files to touch, steps in order, risks, and how the work will be verified. Do not implement yet."
-        : "First produce an implementation plan. After it is approved you will implement it, then verification runs automatically.";
+        : "First produce an implementation plan. After it is approved you will implement it, then verification runs automatically. If you used web_research, cite every source you relied on as [title](url) in the plan.";
   const instructionBlock = instructions
     ? `\nproject instructions (authoritative):\n${instructions}\n`
     : "";
