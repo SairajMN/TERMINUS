@@ -24,6 +24,7 @@ const MAX_REPLAN_ATTEMPTS = 3;
 const MAX_VERIFY_CYCLES = 2;
 const RESULT_CHAR_BUDGET = 12_000;
 const OUTPUT_CHAR_BUDGET = 8_000;
+const READ_ONLY_TOOLS = new Set(["list_dir", "read_file", "search", "git_status", "git_diff"]);
 
 export interface RunTaskOptions {
   workspaceRoot: string;
@@ -243,15 +244,34 @@ export function createAgent(options: RunTaskOptions): AgentSession {
           });
         }
         messages.push({ role: "assistant", content: assistantParts });
-        const results: ContentPart[] = [];
-        for (const call of toolCalls) results.push(await executeTool(call));
-        messages.push({ role: "user", content: results });
+        const results: (ContentPart | null)[] = toolCalls.map(() => null);
+        const reads: { call: (typeof toolCalls)[number]; index: number }[] = [];
+        const writes: { call: (typeof toolCalls)[number]; index: number }[] = [];
+        toolCalls.forEach((call, index) => {
+          (READ_ONLY_TOOLS.has(call.name) ? reads : writes).push({ call, index });
+        });
+        const settled = await Promise.allSettled(reads.map(({ call }) => executeTool(call)));
+        settled.forEach((outcome, at) => {
+          const slot = reads[at] as { call: (typeof toolCalls)[number]; index: number };
+          results[slot.index] =
+            outcome.status === "fulfilled"
+              ? outcome.value
+              : {
+                  type: "tool_result",
+                  tool_use_id: slot.call.id,
+                  content: `tool crashed: ${String(outcome.reason)}`,
+                  is_error: true,
+                };
+        });
+        for (const { call, index } of writes) results[index] = await executeTool(call);
+        messages.push({ role: "user", content: results as ContentPart[] });
       }
     };
 
     const runVerification = async (): Promise<CheckResult[]> => {
       const planned = options.verifyCommands ?? detectVerifications(root);
       const checks: CheckResult[] = [];
+      const approved: string[] = [];
       for (const command of planned) {
         const decision = engine.evaluate({ kind: "command", command });
         emit({
@@ -285,8 +305,18 @@ export function createAgent(options: RunTaskOptions): AgentSession {
             continue;
           }
         }
+        approved.push(command);
+      }
+      const outcomes = await Promise.allSettled(
+        approved.map((command) => runCommand(command, { cwd: root, signal: controller.signal })),
+      );
+      outcomes.forEach((outcome, index) => {
+        const command = approved[index] as string;
         commands.push(command);
-        const result = await runCommand(command, { cwd: root, signal: controller.signal });
+        const result =
+          outcome.status === "fulfilled"
+            ? outcome.value
+            : { exitCode: 1, output: String(outcome.reason), truncated: false, timedOut: false };
         const output = clip(redact(result.output || "(no output)"), OUTPUT_CHAR_BUDGET);
         checks.push({
           name: command,
@@ -300,7 +330,7 @@ export function createAgent(options: RunTaskOptions): AgentSession {
           ok: result.exitCode === 0,
           summary: clip(output, 300),
         });
-      }
+      });
       return checks;
     };
 
