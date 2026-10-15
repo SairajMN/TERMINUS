@@ -11,7 +11,11 @@
       },
       "devDependencies": {
         "@biomejs/biome": "^2.5.15",
+        "@terminus/agent-runtime": "workspace:*",
+        "@terminus/model-gateway": "workspace:*",
         "@terminus/permission-engine": "workspace:*",
+        "@terminus/session-store": "workspace:*",
+        "@terminus/shared": "workspace:*",
         "@types/bun": "^1.4.3",
         "typescript": "^7.0.2",
       },
