@@ -33,8 +33,9 @@ export const firstRun = (): string =>
     "  reports what actually passed.",
     "",
     `  ${accent("SET UP")} (once)`,
-    "    export ANTHROPIC_API_KEY=sk-ant-...",
-    "    optional: export ANTHROPIC_MODEL=<model id>",
+    "    export NEBIUS_API_KEY=...          tokenfactory.nebius.com",
+    "    optional: export NEBIUS_MODEL=nvidia/nemotron-3-super-120b-a12b",
+    "    optional: export TAVILY_API_KEY=...  deep research (tvly-...)",
     "",
     `  ${accent("RUN")}`,
     '    bun run terminus "add input validation to the signup form"',
@@ -47,6 +48,7 @@ export const firstRun = (): string =>
     "    --yes                             approve low-risk actions without asking",
     '    --verify "cmd1,cmd2"              checks to run at the end',
     "    --model <id>                      model override",
+    "    --provider nebius | anthropic     inference backend override",
     "",
     `  ${accent("SAFETY")}`,
     "    Plans are approved before any change. Every command is checked",
@@ -116,6 +118,10 @@ export const printToolResult = (name: string, okFlag: boolean, summary: string):
   process.stdout.write(`  ${err("✗")} ${muted(name)} ${muted(summary.split("\n")[0] ?? "")}\n`);
 };
 
+export const printUsage = (prompt: number, completion: number): void => {
+  process.stdout.write(`  ${muted("tokens")} ${muted(`${prompt} in / ${completion} out`)}\n`);
+};
+
 export const printReport = (report: CompletionReport): void => {
   const mark = report.outcome === "completed" ? ok : err;
   process.stdout.write(`\n${rule}\n`);
@@ -131,6 +137,11 @@ export const printReport = (report: CompletionReport): void => {
         `    ${check.passed ? ok("[pass]") : err("[fail]")} ${ink(check.command)}\n`,
       );
     }
+  }
+  if (report.tokens) {
+    process.stdout.write(
+      `\n  ${muted("tokens")} ${muted(`${report.tokens.prompt} in / ${report.tokens.completion} out`)}\n`,
+    );
   }
   process.stdout.write(`${rule}\n\n`);
 };

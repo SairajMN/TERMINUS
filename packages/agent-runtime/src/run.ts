@@ -94,6 +94,7 @@ export async function runTask(task: string, options: RunTaskOptions): Promise<Co
   const commands: string[] = [];
   const messages: ChatMessage[] = [];
   const maxIterations = options.maxIterations ?? MAX_ITERATIONS;
+  const tokens = { prompt: 0, completion: 0 };
 
   const executeTool = async (call: {
     id: string;
@@ -191,6 +192,10 @@ export async function runTask(task: string, options: RunTaskOptions): Promise<Co
         if (event.type === "text") {
           narration += event.text;
           emit({ type: "text", text: event.text });
+        } else if (event.type === "usage") {
+          tokens.prompt += event.prompt;
+          tokens.completion += event.completion;
+          emit({ type: "usage", prompt: event.prompt, completion: event.completion });
         } else {
           toolCalls.push(event);
         }
@@ -290,6 +295,7 @@ export async function runTask(task: string, options: RunTaskOptions): Promise<Co
       changedFiles: [...changedFiles].sort(),
       commands,
       checks,
+      tokens: tokens.prompt + tokens.completion > 0 ? { ...tokens } : undefined,
     });
   };
 
@@ -421,6 +427,7 @@ export async function runTask(task: string, options: RunTaskOptions): Promise<Co
       changedFiles: [...changedFiles].sort(),
       commands,
       checks: [],
+      tokens: tokens.prompt + tokens.completion > 0 ? { ...tokens } : undefined,
     });
   }
 }

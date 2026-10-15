@@ -8,6 +8,8 @@ type RawEvent = {
   type: string;
   content_block?: { type?: string; id?: string; name?: string };
   delta?: { type?: string; text?: string; partial_json?: string };
+  message?: { usage?: { input_tokens?: number } };
+  usage?: { output_tokens?: number };
 };
 
 export const toAnthropicParams = (
@@ -64,8 +66,12 @@ export async function* consumeAnthropicStream(
   stream: AsyncIterable<RawEvent>,
 ): AsyncIterable<ModelEvent> {
   let pending: { id: string; name: string; json: string } | null = null;
+  let inputTokens = 0;
+  let outputTokens = 0;
   for await (const event of stream) {
-    if (event.type === "content_block_start" && event.content_block?.type === "tool_use") {
+    if (event.type === "message_start" && event.message?.usage) {
+      inputTokens = event.message.usage.input_tokens ?? 0;
+    } else if (event.type === "content_block_start" && event.content_block?.type === "tool_use") {
       pending = {
         id: event.content_block.id ?? "",
         name: event.content_block.name ?? "",
@@ -77,10 +83,15 @@ export async function* consumeAnthropicStream(
       } else if (event.delta.type === "input_json_delta" && pending) {
         pending.json += event.delta.partial_json ?? "";
       }
+    } else if (event.type === "message_delta" && event.usage) {
+      outputTokens = event.usage.output_tokens ?? 0;
     } else if (event.type === "content_block_stop" && pending) {
       const input = pending.json.trim() ? JSON.parse(pending.json) : {};
       yield { type: "tool_use", id: pending.id, name: pending.name, input };
       pending = null;
     }
+  }
+  if (inputTokens > 0 || outputTokens > 0) {
+    yield { type: "usage", prompt: inputTokens, completion: outputTokens };
   }
 }

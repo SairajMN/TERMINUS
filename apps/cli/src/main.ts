@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { runTask } from "@terminus/agent-runtime";
-import { anthropicGateway } from "@terminus/model-gateway";
+import { selectGateway } from "@terminus/model-gateway";
 import { SessionStore } from "@terminus/session-store";
 import type { AgentEvent, ApprovalOutcome, ApprovalRequest, Mode } from "@terminus/shared";
 import {
@@ -15,6 +15,7 @@ import {
   printText,
   printTool,
   printToolResult,
+  printUsage,
 } from "./ui";
 
 interface CliArgs {
@@ -23,6 +24,7 @@ interface CliArgs {
   mode: Mode;
   yes: boolean;
   model?: string;
+  provider?: "nebius" | "anthropic";
   verify: string[];
   help: boolean;
 }
@@ -57,6 +59,15 @@ const parseArgs = (argv: string[]): CliArgs => {
       case "--model":
         args.model = argv[++i];
         break;
+      case "--provider": {
+        const provider = argv[++i];
+        if (provider === "nebius" || provider === "anthropic") args.provider = provider;
+        else {
+          console.error(`unknown provider: ${provider}`);
+          process.exit(2);
+        }
+        break;
+      }
       case "--verify":
         args.verify.push(...(argv[++i] ?? "").split(",").filter(Boolean));
         break;
@@ -81,14 +92,17 @@ const main = async (): Promise<number> => {
     return 2;
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
+  const { gateway, label } = selectGateway({ provider: args.provider, model: args.model });
+  const hasKey = Boolean(process.env.NEBIUS_API_KEY ?? process.env.ANTHROPIC_API_KEY);
+  if (!hasKey) {
     process.stdout.write(firstRun());
-    console.error("ANTHROPIC_API_KEY is not set. Export it and try again.");
+    console.error(
+      "NEBIUS_API_KEY is not set. Get a key at https://tokenfactory.nebius.com and export it.",
+    );
     return 2;
   }
 
-  process.stdout.write(`${banner(workspaceRoot)}\n\n`);
+  process.stdout.write(`${banner(workspaceRoot)}\n  ${label}\n\n`);
 
   const readline = createInterface({ input: process.stdin, output: process.stdout });
   const autoApprove = args.yes || args.mode === "auto";
@@ -131,6 +145,9 @@ const main = async (): Promise<number> => {
       case "tool_result":
         printToolResult(event.name, event.ok, event.summary);
         break;
+      case "usage":
+        printUsage(event.prompt, event.completion);
+        break;
       case "report":
         printReport(event.report);
         break;
@@ -149,7 +166,7 @@ const main = async (): Promise<number> => {
   try {
     const report = await runTask(args.task, {
       workspaceRoot,
-      gateway: anthropicGateway({ model: args.model }),
+      gateway,
       approver,
       emit: onEvent,
       mode: args.mode,

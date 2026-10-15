@@ -13,6 +13,7 @@ export interface CompletionReport {
   changedFiles: string[];
   commands: string[];
   checks: CheckResult[];
+  tokens?: { prompt: number; completion: number };
 }
 
 export type AgentEvent =
@@ -22,6 +23,7 @@ export type AgentEvent =
   | { type: "tool"; name: string; input: unknown; decision: PermissionNote }
   | { type: "tool_result"; name: string; ok: boolean; summary: string }
   | { type: "approval"; question: string; approved: boolean }
+  | { type: "usage"; prompt: number; completion: number }
   | { type: "report"; report: CompletionReport };
 
 export type PermissionNote = {
