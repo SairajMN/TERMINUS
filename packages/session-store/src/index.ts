@@ -29,6 +29,7 @@ export class SessionStore {
     this.db = new Database(file);
     this.db.exec(`
       PRAGMA journal_mode = WAL;
+      PRAGMA busy_timeout = 5000;
       CREATE TABLE IF NOT EXISTS sessions (
         id TEXT PRIMARY KEY,
         workspace TEXT NOT NULL,

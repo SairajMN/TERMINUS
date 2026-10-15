@@ -47,3 +47,12 @@ describe("sha256", () => {
     expect(sha256("abc")).toHaveLength(64);
   });
 });
+
+describe("ask-mode completion path", () => {
+  it("allows answering without entering planning", () => {
+    const m = new TaskMachine();
+    m.to("investigating");
+    m.to("completed");
+    expect(m.state).toBe("completed");
+  });
+});

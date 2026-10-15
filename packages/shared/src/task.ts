@@ -12,7 +12,7 @@ export type TaskState =
 
 const TRANSITIONS: Record<TaskState, readonly TaskState[]> = {
   queued: ["investigating", "cancelled"],
-  investigating: ["planning", "cancelled"],
+  investigating: ["planning", "completed", "cancelled"],
   planning: ["awaiting_approval", "cancelled"],
   awaiting_approval: ["implementing", "planning", "cancelled"],
   implementing: ["verifying", "failed_check", "cancelled"],
