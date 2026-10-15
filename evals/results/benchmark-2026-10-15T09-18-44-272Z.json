@@ -1,0 +1,65 @@
+{
+  "model": "nvidia/nemotron-3-super-120b-a12b",
+  "results": [
+    {
+      "name": "strings-truncate",
+      "difficulty": "easy",
+      "kind": "implement",
+      "outcome": "completed",
+      "checks": "pass",
+      "groundTruth": true,
+      "failedChecks": 0,
+      "tokens": {
+        "prompt": 29030,
+        "completion": 1637
+      },
+      "seconds": 16,
+      "changedFiles": 1
+    },
+    {
+      "name": "calculator-average-bug",
+      "difficulty": "easy",
+      "kind": "debug",
+      "outcome": "completed",
+      "checks": "pass",
+      "groundTruth": true,
+      "failedChecks": 0,
+      "tokens": {
+        "prompt": 31498,
+        "completion": 1899
+      },
+      "seconds": 17,
+      "changedFiles": 1
+    },
+    {
+      "name": "debounce-implementation",
+      "difficulty": "medium",
+      "kind": "implement",
+      "outcome": "completed",
+      "checks": "pass",
+      "groundTruth": true,
+      "failedChecks": 1,
+      "tokens": {
+        "prompt": 22917,
+        "completion": 1864
+      },
+      "seconds": 13.5,
+      "changedFiles": 1
+    },
+    {
+      "name": "timezone-formatter",
+      "difficulty": "medium",
+      "kind": "implement",
+      "outcome": "completed",
+      "checks": "pass",
+      "groundTruth": true,
+      "failedChecks": 0,
+      "tokens": {
+        "prompt": 30824,
+        "completion": 3078
+      },
+      "seconds": 20.4,
+      "changedFiles": 1
+    }
+  ]
+}
