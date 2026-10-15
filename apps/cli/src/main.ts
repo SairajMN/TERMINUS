@@ -13,6 +13,7 @@ import type {
   Mode,
 } from "@terminus/shared";
 import { loadConfig } from "./config";
+import { scanShortcuts } from "./debt";
 import { loadHomeEnv } from "./env";
 import { buildPriorContext } from "./resume";
 import {
@@ -41,11 +42,12 @@ interface CliArgs {
   report?: "json";
   resumeId?: string;
   listSessions: boolean;
+  showDebt: boolean;
   timeoutSeconds?: number;
   version: boolean;
 }
 
-const MODES: Mode[] = ["ask", "plan", "act", "auto"];
+const MODES: Mode[] = ["ask", "plan", "audit", "act", "auto"];
 
 const parseArgs = (argv: string[]): CliArgs => {
   const args: CliArgs = {
@@ -55,6 +57,7 @@ const parseArgs = (argv: string[]): CliArgs => {
     verify: [],
     help: false,
     listSessions: false,
+    showDebt: false,
     version: false,
   };
   const words: string[] = [];
@@ -71,6 +74,9 @@ const parseArgs = (argv: string[]): CliArgs => {
         break;
       case "--sessions":
         args.listSessions = true;
+        break;
+      case "--debt":
+        args.showDebt = true;
         break;
       case "--version":
       case "-v":
@@ -154,8 +160,8 @@ const main = async (): Promise<number> => {
   }
   const repl = args.help
     ? false
-    : args.task.length === 0 && !args.listSessions && process.stdin.isTTY;
-  if (args.help || (args.task.length === 0 && !args.listSessions && !repl)) {
+    : args.task.length === 0 && !args.listSessions && !args.showDebt && process.stdin.isTTY;
+  if (args.help || (args.task.length === 0 && !args.listSessions && !args.showDebt && !repl)) {
     process.stdout.write(firstRun());
     return args.help ? 0 : 2;
   }
@@ -175,6 +181,19 @@ const main = async (): Promise<number> => {
   const timeoutSeconds = args.timeoutSeconds ?? config.timeoutSeconds;
   const jsonMode = args.report === "json";
   if (jsonMode) setUiOutput(process.stderr);
+
+  if (args.showDebt) {
+    const shortcuts = scanShortcuts(workspaceRoot);
+    if (shortcuts.length === 0) {
+      process.stdout.write("  no shortcut: comments found\n");
+    } else {
+      process.stdout.write(`  ${shortcuts.length} shortcut(s) on record\n`);
+      for (const item of shortcuts) {
+        process.stdout.write(`    ${item.file}:${item.line}  ${item.text}\n`);
+      }
+    }
+    return 0;
+  }
 
   const store = new SessionStore();
 
@@ -341,8 +360,14 @@ const main = async (): Promise<number> => {
       }
       if (line === "/help") {
         process.stdout.write(
-          "  /clear   forget conversation context\n  /sessions  list recent sessions\n  /quit     exit\n",
+          "  /clear   forget conversation context\n  /sessions  list recent sessions\n  /debt     shortcut: ledger\n  /quit     exit\n",
         );
+        continue;
+      }
+      if (line === "/debt") {
+        for (const item of scanShortcuts(workspaceRoot)) {
+          process.stdout.write(`  ${item.file}:${item.line}  ${item.text}\n`);
+        }
         continue;
       }
       if (line === "/sessions") {
