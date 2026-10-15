@@ -13,6 +13,7 @@ import type {
   Mode,
 } from "@terminus/shared";
 import { loadConfig } from "./config";
+import { loadHomeEnv } from "./env";
 import { buildPriorContext } from "./resume";
 import {
   banner,
@@ -26,6 +27,7 @@ import {
   printUsage,
   setUiOutput,
 } from "./ui";
+import { VERSION } from "./version";
 
 interface CliArgs {
   task: string;
@@ -40,6 +42,7 @@ interface CliArgs {
   resumeId?: string;
   listSessions: boolean;
   timeoutSeconds?: number;
+  version: boolean;
 }
 
 const MODES: Mode[] = ["ask", "plan", "act", "auto"];
@@ -52,6 +55,7 @@ const parseArgs = (argv: string[]): CliArgs => {
     verify: [],
     help: false,
     listSessions: false,
+    version: false,
   };
   const words: string[] = [];
   for (let i = 0; i < argv.length; i++) {
@@ -67,6 +71,10 @@ const parseArgs = (argv: string[]): CliArgs => {
         break;
       case "--sessions":
         args.listSessions = true;
+        break;
+      case "--version":
+      case "-v":
+        args.version = true;
         break;
       case "--dir":
         args.dir = argv[++i] ?? ".";
@@ -139,6 +147,11 @@ const exitCodeFor = (report: CompletionReport): number =>
 
 const main = async (): Promise<number> => {
   const args = parseArgs(process.argv.slice(2));
+  loadHomeEnv();
+  if (args.version) {
+    process.stdout.write(`terminus ${VERSION}\n`);
+    return 0;
+  }
   const repl = args.help
     ? false
     : args.task.length === 0 && !args.listSessions && process.stdin.isTTY;
