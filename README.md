@@ -31,6 +31,14 @@ TAVILY_API_KEY=tvly-... # optional deep research
 EOF
 ```
 
+Then run it from any project folder:
+
+```bash
+terminus "add input validation to the signup form"
+terminus                                     # interactive session: chat + tasks
+terminus --mode plan "structure the api client"   # research and plan, no edits
+```
+
 ## Quick start (from source)
 
 ```bash
