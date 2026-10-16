@@ -29,6 +29,31 @@ const PLAN_TEMPLATE = [
   "5. Open questions — list at most 3 you genuinely need answered; write 'none' if the task is clear",
 ].join("\n");
 
+const TASK_VERBS =
+  /\b(add|build|create|implement|fix|debug|refactor|update|change|remove|delete|rename|move|migrate|test|write|generate|convert|upgrade|install|configure|set up|setup|deploy|investigate|audit|review|check|run|explain|show|list|find)\b/i;
+
+const QUESTION_LIKE =
+  /[?]|^(what|why|how|where|which|when|who|is|are|does|do|can|should|explain|describe|tell me)\b/i;
+
+export const isTaskLike = (line: string): boolean => {
+  const text = line.trim();
+  if (text.length === 0) return false;
+  if (QUESTION_LIKE.test(text)) return false;
+  if (text.length < 140) return TASK_VERBS.test(text);
+  return true;
+};
+
+export const buildChatMessage = (
+  message: string,
+  repoMap: string,
+  instructions: string | null,
+): string => {
+  const instructionBlock = instructions
+    ? `\nproject instructions (authoritative):\n${instructions}\n`
+    : "";
+  return `Answer conversationally using the repository map and project instructions below. If the message asks about the codebase, ground your answer in what you can see; if you would need to open files to answer, say which ones instead of calling tools. Keep it short unless asked for detail.\n\nmessage: ${message}\n${instructionBlock}\n${repoMap}`;
+};
+
 export const buildTaskMessage = (
   task: string,
   repoMap: string,

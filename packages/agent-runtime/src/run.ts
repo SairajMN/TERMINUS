@@ -17,7 +17,7 @@ import {
 } from "@terminus/shared";
 import { actionFor, createTools, redact, runCommand } from "@terminus/tool-runtime";
 import { z } from "zod";
-import { buildSystemPrompt, buildTaskMessage } from "./prompt";
+import { buildChatMessage, buildSystemPrompt, buildTaskMessage } from "./prompt";
 
 const MAX_ITERATIONS = 30;
 const MAX_REPLAN_ATTEMPTS = 3;
@@ -43,6 +43,7 @@ export interface RunTaskOptions {
 
 export interface AgentSession {
   run(task: string, overrides?: { signal?: AbortSignal }): Promise<CompletionReport>;
+  chat(message: string, overrides?: { signal?: AbortSignal }): Promise<string>;
   reset(): void;
 }
 
@@ -85,12 +86,81 @@ export function createAgent(options: RunTaskOptions): AgentSession {
   let evidence = new EvidenceStore();
   let bootstrapped = false;
 
+  const root = options.workspaceRoot;
+
+  const ensureBootstrapped = (): { instructions: string | null; repoMap: string } => {
+    if (bootstrapped) {
+      const map = evidence.all().find((item) => item.source === "repository map");
+      const guide = evidence.all().find((item) => item.source === "project instructions");
+      return {
+        instructions: typeof guide?.content === "string" ? guide.content : null,
+        repoMap: typeof map?.content === "string" ? map.content : "",
+      };
+    }
+    bootstrapped = true;
+    const instructions = loadInstructions(root);
+    if (instructions) {
+      evidence.add({
+        kind: "instruction",
+        source: "project instructions",
+        content: instructions,
+        trustLevel: "trusted",
+        relevance: 1,
+      });
+    }
+    const repoMap = buildRepoMap(root);
+    evidence.add({
+      kind: "documentation",
+      source: "repository map",
+      content: repoMap,
+      relevance: 0.8,
+    });
+    return { instructions, repoMap };
+  };
+
+  const chat = async (message: string, overrides?: { signal?: AbortSignal }): Promise<string> => {
+    const emit: Emit = options.emit ?? (() => {});
+    const controller = new AbortController();
+    const incoming = overrides?.signal ?? options.signal;
+    if (incoming?.aborted) controller.abort();
+    else incoming?.addEventListener("abort", () => controller.abort(), { once: true });
+
+    const { instructions, repoMap } = ensureBootstrapped();
+    messages.push({
+      role: "user",
+      content: [{ type: "text", text: buildChatMessage(message, repoMap, instructions) }],
+    });
+    let reply = "";
+    const parts: ContentPart[] = [];
+    try {
+      for await (const event of options.gateway.complete(
+        { system: buildSystemPrompt(root, "ask"), messages, tools: [] },
+        controller.signal,
+      )) {
+        if (event.type === "text") {
+          reply += event.text;
+          emit({ type: "text", text: event.text });
+        } else if (event.type === "usage") {
+          emit({ type: "usage", prompt: event.prompt, completion: event.completion });
+        }
+      }
+    } catch (error) {
+      messages.pop();
+      throw error;
+    }
+    if (reply) parts.push({ type: "text", text: reply });
+    messages.push({
+      role: "assistant",
+      content: parts.length > 0 ? parts : [{ type: "text", text: "" }],
+    });
+    return reply.trim();
+  };
+
   const run = async (
     task: string,
     overrides?: { signal?: AbortSignal },
   ): Promise<CompletionReport> => {
     const emit: Emit = options.emit ?? (() => {});
-    const root = options.workspaceRoot;
     const mode = options.mode ?? "act";
     const machine = new TaskMachine();
     const controller = new AbortController();
@@ -386,42 +456,20 @@ export function createAgent(options: RunTaskOptions): AgentSession {
 
     try {
       state("investigating");
-      if (bootstrapped) {
-        messages.push({
-          role: "user",
-          content: [{ type: "text", text: `New task in this session: ${task}` }],
-        });
-      } else {
-        bootstrapped = true;
-        const instructions = loadInstructions(root);
-        if (instructions) {
-          evidence.add({
-            kind: "instruction",
-            source: "project instructions",
-            content: instructions,
-            trustLevel: "trusted",
-            relevance: 1,
-          });
-        }
-        const repoMap = buildRepoMap(root);
-        evidence.add({
-          kind: "documentation",
-          source: "repository map",
-          content: repoMap,
-          relevance: 0.8,
-        });
-        messages.push({
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: options.priorContext
-                ? `${buildTaskMessage(task, repoMap, instructions, mode)}\n\n${options.priorContext}`
-                : buildTaskMessage(task, repoMap, instructions, mode),
-            },
-          ],
-        });
-      }
+      const { instructions, repoMap } = ensureBootstrapped();
+      const prior = options.priorContext ? `\n\n${options.priorContext}` : "";
+      const firstMessage = messages.length === 0;
+      messages.push({
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: firstMessage
+              ? `${buildTaskMessage(task, repoMap, instructions, mode)}${prior}`
+              : `New task in this session: ${task}`,
+          },
+        ],
+      });
 
       const readTools = tools.filter((tool) => tool.tier === "read");
 
@@ -560,6 +608,7 @@ export function createAgent(options: RunTaskOptions): AgentSession {
 
   return {
     run,
+    chat,
     reset: () => {
       messages.length = 0;
       evidence = new EvidenceStore();
