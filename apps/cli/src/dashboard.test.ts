@@ -3,12 +3,16 @@ import {
   approvalCard,
   emptyDash,
   header,
+  planCard,
   recordState,
   recordTool,
   reportCard,
+  resultLine,
   spin,
+  stateLine,
   timeline,
   toolLine,
+  usageLine,
 } from "./dashboard";
 
 describe("dashboard palette", () => {
@@ -60,5 +64,31 @@ describe("dashboard palette", () => {
     expect(card).toContain("done");
     expect(card).toContain("[pass]");
     expect(spin(emptyDash())).toBe("…");
+  });
+});
+
+describe("router renderers", () => {
+  it("marks state transitions by outcome", () => {
+    expect(stateLine("implementing")).toContain("build");
+    expect(stateLine("completed")).toContain("done");
+    expect(stateLine("failed_check")).toContain("failed");
+  });
+
+  it("frames plans with a rule", () => {
+    const card = planCard("step one\nstep two");
+    expect(card).toContain("─");
+    expect(card).toContain("plan");
+    expect(card).toContain("step one");
+  });
+
+  it("shows per-call usage", () => {
+    expect(usageLine(1200, 80)).toContain("1200 in / 80 out");
+  });
+
+  it("prints only failing tool results", () => {
+    expect(resultLine("run_command", true, "ok")).toBeNull();
+    const failed = resultLine("run_command", false, "exit 1\nstack");
+    expect(failed).toContain("✕");
+    expect(failed).toContain("exit 1");
   });
 });

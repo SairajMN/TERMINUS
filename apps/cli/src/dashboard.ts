@@ -1,4 +1,5 @@
 import type { CompletionReport, PermissionNote, TaskState } from "@terminus/shared";
+import { VERSION } from "./version";
 
 const colored = Boolean(process.stdout.isTTY) && !process.env.NO_COLOR;
 const paint = (rgb: string) => (text: string) =>
@@ -68,7 +69,7 @@ export const recordTool = (dash: DashState): DashState => {
 };
 
 export const header = (workspace: string, mode: string, label: string): string =>
-  `${suitBanner(" TERMINUS ")}  ${stone(workspace)}  ${brass(mode)}  ${stone(label)}  ${stone("v0.1.0")}`;
+  `${suitBanner(" TERMINUS ")}  ${stone(workspace)}  ${brass(mode)}  ${stone(label)}  ${stone(`v${VERSION}`)}`;
 
 export const timeline = (dash: DashState): string => {
   const parts = TRACKED.map((state) => {
@@ -146,3 +147,28 @@ export const reportCard = (report: CompletionReport): string => {
 
 export const chatHint =
   "chat freely; directives run as tasks. /help, /clear, /quit — /help for details";
+
+export const stateLine = (to: TaskState): string => {
+  const paintFn =
+    to === "completed" ? leaf : to === "failed_check" || to === "cancelled" ? rust : brass;
+  return `  ${paintFn("→")} ${paper(SHORT[to])}`;
+};
+
+export const usageLine = (prompt: number, completion: number): string =>
+  `  ${stone("tokens")} ${stone(`${prompt} in / ${completion} out`)}`;
+
+export const resultLine = (name: string, ok: boolean, summary: string): string | null => {
+  if (ok && !summary.toLowerCase().includes("error")) return null;
+  const first = summary.split("\n")[0] ?? "";
+  return `  ${rust("✕")} ${stone(name)} ${stone(first)}`;
+};
+
+export const planCard = (text: string): string => {
+  const rule = stone("─".repeat(58));
+  const body = text
+    .trim()
+    .split("\n")
+    .map((line) => `  ${paper(line)}`)
+    .join("\n");
+  return `\n${rule}\n  ${brass("plan")}\n${body}\n${rule}\n`;
+};

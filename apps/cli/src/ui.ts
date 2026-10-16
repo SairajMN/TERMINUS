@@ -1,33 +1,21 @@
-import type { CompletionReport, TaskState } from "@terminus/shared";
-
 let out: { write(text: string): unknown } = process.stdout;
 
 export const setUiOutput = (stream: { write(text: string): unknown }): void => {
   out = stream;
 };
 
+export const uiWrite = (text: string): void => {
+  out.write(text);
+};
+
 const colored = Boolean(process.stdout.isTTY) && !process.env.NO_COLOR;
 const paint = (rgb: string) => (text: string) =>
   colored ? `\x1b[38;2;${rgb}m${text}\x1b[0m` : text;
 
-const ink = paint("216,222,233");
-const muted = paint("108,122,137");
-const accent = paint("127,161,195");
-const ok = paint("123,160,91");
-const err = paint("176,90,90");
-const warn = paint("194,161,90");
+const muted = paint("138,148,163");
+const accent = paint("185,154,95");
 const header = (text: string) =>
-  colored ? `\x1b[48;2;27;42;65m\x1b[38;2;216;222;233m${text}\x1b[0m` : text;
-
-const rule = muted("─".repeat(58));
-const indent = (text: string, pad = "  ") =>
-  text
-    .split("\n")
-    .map((line) => pad + line)
-    .join("\n");
-
-export const banner = (workspace: string): string =>
-  `${header(" TERMINUS ")}  ${muted(workspace)}  ${muted("v0.1.0")}`;
+  colored ? `\x1b[48;2;27;42;68m\x1b[38;2;215;219;224m${text}\x1b[0m` : text;
 
 export const firstRun = (): string =>
   [
@@ -79,91 +67,3 @@ export const firstRun = (): string =>
     `  ${muted("session log:      ~/.terminus/terminus.db")}`,
     "",
   ].join("\n");
-
-const STATE_LABEL: Record<TaskState, string> = {
-  queued: "queued",
-  investigating: "investigating",
-  planning: "planning",
-  awaiting_approval: "awaiting approval",
-  implementing: "implementing",
-  verifying: "verifying",
-  reviewing: "reviewing",
-  failed_check: "check failed",
-  diagnosing: "diagnosing",
-  completed: "completed",
-  cancelled: "cancelled",
-};
-
-export const printState = (to: TaskState): void => {
-  const label = STATE_LABEL[to];
-  const paintFn =
-    to === "completed" ? ok : to === "failed_check" || to === "cancelled" ? err : accent;
-  out.write(`  ${paintFn("→")} ${paintFn(label)}\n`);
-};
-
-export const printText = (text: string): void => {
-  out.write(`${ink(text.trimEnd())}\n`);
-};
-
-export const printPlan = (text: string): void => {
-  out.write(`\n${rule}\n${indent(accent("plan"))}\n${indent(ink(text.trim()))}\n${rule}\n\n`);
-};
-
-export const printTool = (
-  name: string,
-  input: unknown,
-  decision: { verdict: string; tier: string; reason: string },
-): void => {
-  const value = (input ?? {}) as Record<string, unknown>;
-  const subject =
-    name === "run_command"
-      ? String(value.command ?? "")
-      : typeof value.path === "string"
-        ? value.path
-        : "";
-  const paintFn = decision.verdict === "deny" ? err : decision.verdict === "ask" ? warn : muted;
-  const suffix =
-    decision.verdict === "deny"
-      ? ` · ${decision.reason}`
-      : ` · ${decision.verdict}(${decision.tier})`;
-  out.write(
-    `  ${muted("·")} ${ink(name)}${subject ? ` ${muted(subject)}` : ""}  ${paintFn(suffix)}\n`,
-  );
-};
-
-export const printToolResult = (name: string, okFlag: boolean, summary: string): void => {
-  if (okFlag && !summary.toLowerCase().includes("error")) return;
-  out.write(`  ${err("✗")} ${muted(name)} ${muted(summary.split("\n")[0] ?? "")}\n`);
-};
-
-export const printUsage = (prompt: number, completion: number): void => {
-  out.write(`  ${muted("tokens")} ${muted(`${prompt} in / ${completion} out`)}\n`);
-};
-
-export const printReport = (report: CompletionReport): void => {
-  const mark = report.outcome === "completed" ? ok : err;
-  out.write(`\n${rule}\n`);
-  out.write(`  ${mark(report.outcome)} · ${ink(report.summary)}\n`);
-  if (report.changedFiles.length > 0) {
-    out.write(`\n  ${muted("changed files")}\n`);
-    for (const file of report.changedFiles) out.write(`    ${ink(file)}\n`);
-  }
-  if (report.checks.length > 0) {
-    out.write(`\n  ${muted("checks")}\n`);
-    for (const check of report.checks) {
-      out.write(`    ${check.passed ? ok("[pass]") : err("[fail]")} ${ink(check.command)}\n`);
-    }
-  }
-  if (report.review) {
-    const mark = report.review.verdict === "clear" ? ok : warn;
-    process.stdout.write(
-      `\n  ${muted("review")} ${mark(report.review.verdict)} · ${ink(report.review.summary.split("\n")[0] ?? "")}\n`,
-    );
-  }
-  if (report.tokens) {
-    out.write(
-      `\n  ${muted("tokens")} ${muted(`${report.tokens.prompt} in / ${report.tokens.completion} out`)}\n`,
-    );
-  }
-  out.write(`${rule}\n\n`);
-};

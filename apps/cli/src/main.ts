@@ -13,21 +13,26 @@ import type {
   Mode,
 } from "@terminus/shared";
 import { loadConfig } from "./config";
+import {
+  approvalCard,
+  chatHint,
+  elapsed,
+  emptyDash,
+  header,
+  planCard,
+  recordState,
+  recordTool,
+  reportCard,
+  resultLine,
+  stateLine,
+  timeline,
+  toolLine,
+  usageLine,
+} from "./dashboard";
 import { scanShortcuts } from "./debt";
 import { loadHomeEnv } from "./env";
 import { buildPriorContext } from "./resume";
-import {
-  banner,
-  firstRun,
-  printPlan,
-  printReport,
-  printState,
-  printText,
-  printTool,
-  printToolResult,
-  printUsage,
-  setUiOutput,
-} from "./ui";
+import { firstRun, setUiOutput, uiWrite } from "./ui";
 import { VERSION } from "./version";
 
 interface CliArgs {
@@ -233,7 +238,7 @@ const main = async (): Promise<number> => {
     model: args.model ?? config.model,
   });
 
-  if (!jsonMode) process.stdout.write(`${banner(workspaceRoot)}\n  ${label}\n\n`);
+  if (!jsonMode) process.stdout.write(`${header(workspaceRoot, mode, label)}\n\n`);
 
   const readline = createInterface({ input: process.stdin, output: process.stderr });
   const autoApprove = args.yes || mode === "auto";
@@ -245,7 +250,7 @@ const main = async (): Promise<number> => {
       return { approved: true };
     }
     if (request.summary === "Approve plan" && request.detail) {
-      printPlan(request.detail);
+      uiWrite(`${planCard(request.detail)}\n`);
       const answer = (await readline.question("  approve plan? [y]es / [n]o / [f]eedback: "))
         .trim()
         .toLowerCase();
@@ -256,9 +261,8 @@ const main = async (): Promise<number> => {
       }
       return { approved: false };
     }
-    const answer = (await readline.question(`  allow? ${request.summary} [y]es/[a]lways/[N]o: `))
-      .trim()
-      .toLowerCase();
+    uiWrite(`${approvalCard(request.summary)}\n`);
+    const answer = (await readline.question("  › ")).trim().toLowerCase();
     if (answer === "a" || answer === "always") {
       sessionAlways.add(request.summary);
       return { approved: true };
@@ -266,27 +270,39 @@ const main = async (): Promise<number> => {
     return { approved: answer === "y" || answer === "yes" };
   };
 
+  let dash = emptyDash();
+  let pendingText = false;
+
   const onEvent = (event: AgentEvent): void => {
+    if (event.type !== "text" && pendingText) {
+      uiWrite("\n");
+      pendingText = false;
+    }
     switch (event.type) {
       case "state":
-        printState(event.to);
+        recordState(dash, event.to);
+        uiWrite(`${stateLine(event.to)}\n`);
         break;
       case "text":
-        printText(event.text);
+        uiWrite(event.text);
+        pendingText = true;
         break;
       case "plan":
         break;
       case "tool":
-        printTool(event.name, event.input, event.decision);
+        recordTool(dash);
+        uiWrite(`${toolLine(event.name, event.input, event.decision)}\n`);
         break;
-      case "tool_result":
-        printToolResult(event.name, event.ok, event.summary);
+      case "tool_result": {
+        const line = resultLine(event.name, event.ok, event.summary);
+        if (line) uiWrite(`${line}\n`);
         break;
+      }
       case "usage":
-        printUsage(event.prompt, event.completion);
+        uiWrite(`${usageLine(event.prompt, event.completion)}\n`);
         break;
       case "report":
-        printReport(event.report);
+        uiWrite(`${timeline(dash)}\n${elapsed(dash)}\n${reportCard(event.report)}\n`);
         break;
       case "approval":
         break;
@@ -327,11 +343,16 @@ const main = async (): Promise<number> => {
   });
 
   const runOne = async (task: string): Promise<CompletionReport> => {
+    dash = emptyDash();
     const controller = new AbortController();
     active = controller;
     try {
       return await agent.run(task, { signal: controller.signal });
     } finally {
+      if (pendingText) {
+        uiWrite("\n");
+        pendingText = false;
+      }
       active = null;
     }
   };
@@ -342,6 +363,10 @@ const main = async (): Promise<number> => {
     try {
       await agent.chat(message, { signal: controller.signal });
     } finally {
+      if (pendingText) {
+        uiWrite("\n");
+        pendingText = false;
+      }
       active = null;
     }
   };
@@ -353,9 +378,7 @@ const main = async (): Promise<number> => {
       return exitCodeFor(report);
     }
 
-    process.stdout.write(
-      "\n  interactive session — chat freely; directives run as tasks. /help, /clear, /quit\n",
-    );
+    process.stdout.write(`\n  ${chatHint}\n`);
     while (true) {
       let line = "";
       try {
