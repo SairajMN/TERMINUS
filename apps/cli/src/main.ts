@@ -2,7 +2,7 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
-import { createAgent } from "@terminus/agent-runtime";
+import { createAgent, isTaskLike } from "@terminus/agent-runtime";
 import { selectGateway } from "@terminus/model-gateway";
 import { SessionStore } from "@terminus/session-store";
 import type {
@@ -336,6 +336,16 @@ const main = async (): Promise<number> => {
     }
   };
 
+  const chatOne = async (message: string): Promise<void> => {
+    const controller = new AbortController();
+    active = controller;
+    try {
+      await agent.chat(message, { signal: controller.signal });
+    } finally {
+      active = null;
+    }
+  };
+
   try {
     if (!repl) {
       const report = await runOne(args.task);
@@ -343,7 +353,9 @@ const main = async (): Promise<number> => {
       return exitCodeFor(report);
     }
 
-    process.stdout.write("\n  interactive session — type a task, or /help, /clear, /quit\n");
+    process.stdout.write(
+      "\n  interactive session — chat freely; directives run as tasks. /help, /clear, /quit\n",
+    );
     while (true) {
       let line = "";
       try {
@@ -378,7 +390,11 @@ const main = async (): Promise<number> => {
         }
         continue;
       }
-      await runOne(line);
+      if (isTaskLike(line)) {
+        await runOne(line);
+        continue;
+      }
+      await chatOne(line);
     }
     return 0;
   } finally {
