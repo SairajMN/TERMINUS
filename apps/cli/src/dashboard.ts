@@ -1,4 +1,5 @@
 import type { CompletionReport, PermissionNote, TaskState } from "@terminus/shared";
+import { clip, fitWidth, shortPath, wrap } from "./fit";
 import { VERSION } from "./version";
 
 const colored = Boolean(process.stdout.isTTY) && !process.env.NO_COLOR;
@@ -68,20 +69,67 @@ export const recordTool = (dash: DashState): DashState => {
   return dash;
 };
 
-export const header = (workspace: string, mode: string, label: string): string =>
-  `${suitBanner(" TERMINUS ")}  ${stone(workspace)}  ${brass(mode)}  ${stone(label)}  ${stone(`v${VERSION}`)}`;
-
-export const timeline = (dash: DashState): string => {
-  const parts = TRACKED.map((state) => {
-    const at = dash.stateAt.get(state);
-    const mark = dash.current === state ? brass("●") : at !== undefined ? leaf("●") : stone("○");
-    return `${mark} ${stone(SHORT[state])}`;
-  });
-  return `  ${parts.join("  ")}`;
+export const header = (
+  workspace: string,
+  mode: string,
+  label: string,
+  width = fitWidth(),
+): string => {
+  const version = `v${VERSION}`;
+  let withLabel = true;
+  let withVersion = true;
+  const tailLength = (): number =>
+    2 + mode.length + (withLabel ? 2 + label.length : 0) + (withVersion ? 2 + version.length : 0);
+  const fit = (): string => {
+    let ws = shortPath(workspace, width - 12 - tailLength());
+    while (12 + ws.length + tailLength() > width && (withLabel || withVersion)) {
+      if (withLabel) withLabel = false;
+      else withVersion = false;
+      ws = shortPath(workspace, width - 12 - tailLength());
+    }
+    return ws;
+  };
+  const ws = fit();
+  const tail =
+    `  ${brass(mode)}` +
+    (withLabel ? `  ${stone(label)}` : "") +
+    (withVersion ? `  ${stone(version)}` : "");
+  return `${suitBanner(" TERMINUS ")}  ${stone(ws)}${tail}`;
 };
 
+const trackMark = (dash: DashState, state: TaskState): string => {
+  const at = dash.stateAt.get(state);
+  if (dash.current === state) return brass("●");
+  return at !== undefined ? leaf("●") : stone("○");
+};
+
+const renderTrack = (dash: DashState, states: TaskState[], joiner: string): string =>
+  `  ${states.map((state) => `${trackMark(dash, state)} ${stone(SHORT[state])}`).join(joiner)}`;
+
+const trackLength = (states: TaskState[], joiner: string): number =>
+  2 +
+  states.reduce(
+    (total, state, index) => total + 2 + SHORT[state].length + (index > 0 ? joiner.length : 0),
+    0,
+  );
+
+export const timeline = (dash: DashState, width = fitWidth()): string => {
+  if (trackLength(TRACKED, "  ") <= width) return renderTrack(dash, TRACKED, "  ");
+  const index = dash.current ? TRACKED.indexOf(dash.current) : -1;
+  const upto = TRACKED.slice(0, index >= 0 ? index + 1 : 3);
+  const more = upto.length < TRACKED.length;
+  const compact = `${renderTrack(dash, upto, " › ")}${more ? stone(" › …") : ""}`;
+  if (trackLength(upto, " › ") + (more ? 4 : 0) <= width) return compact;
+  const label = dash.current ? SHORT[dash.current] : "queued";
+  const mark = dash.current ? brass("●") : stone("○");
+  return `  ${mark} ${stone(`${label} (${Math.max(index + 1, 0)}/${TRACKED.length})`)}`;
+};
+
+export const pace = (dash: DashState, now = Date.now()): string =>
+  `${((now - dash.startedAt) / 1000).toFixed(1)}s · ${dash.toolCalls} tools`;
+
 export const elapsed = (dash: DashState, now = Date.now()): string =>
-  stone(`elapsed ${((now - dash.startedAt) / 1000).toFixed(1)}s · ${dash.toolCalls} tools`);
+  stone(`elapsed ${pace(dash, now)}`);
 
 const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
@@ -97,7 +145,12 @@ const toolSubject = (name: string, input: unknown): string => {
   return typeof value.path === "string" ? value.path : "";
 };
 
-export const toolLine = (name: string, input: unknown, decision: PermissionNote): string => {
+export const toolLine = (
+  name: string,
+  input: unknown,
+  decision: PermissionNote,
+  width = fitWidth(),
+): string => {
   const subject = toolSubject(name, input);
   const mark =
     decision.verdict === "deny" ? rust("✕") : decision.verdict === "ask" ? brass("?") : stone("·");
@@ -105,13 +158,24 @@ export const toolLine = (name: string, input: unknown, decision: PermissionNote)
     decision.verdict === "deny"
       ? ` · ${decision.reason}`
       : ` · ${decision.verdict}(${decision.tier})`;
-  return `  ${mark} ${paper(name)}${subject ? ` ${stone(subject)}` : ""}  ${stone(suffix)}`;
+  const coreLength = 4 + name.length;
+  const shownSuffix = clip(suffix, Math.max(8, width - coreLength - 2));
+  const budget = width - coreLength - 2 - shownSuffix.length - (subject ? 1 : 0);
+  const shownSubject = subject && budget >= 4 ? clip(subject, budget) : "";
+  return `  ${mark} ${paper(name)}${shownSubject ? ` ${stone(shownSubject)}` : ""}  ${stone(shownSuffix)}`;
 };
 
-export const approvalCard = (question: string, detail?: string): string => {
-  const lines = [`  ${brass("approve?")} ${paper(question)}`];
+export const approvalCard = (question: string, detail?: string, width = fitWidth()): string => {
+  const headLength = 12;
+  const lines = wrap(question, Math.max(12, width - headLength)).map((segment, index) =>
+    index === 0
+      ? `  ${brass("approve?")} ${paper(segment)}`
+      : `${" ".repeat(headLength)}${paper(segment)}`,
+  );
   if (detail) {
-    for (const line of detail.split("\n").slice(0, 6)) lines.push(`    ${stone(line)}`);
+    for (const line of detail.split("\n").slice(0, 6)) {
+      lines.push(`    ${stone(clip(line, Math.max(8, width - 4)))}`);
+    }
     lines.push(`    ${stone("[y]es / [n]o / [f]eedback")}`);
   } else {
     lines.push(`    ${stone("[y]es / [a]lways / [N]o")}`);
@@ -119,22 +183,37 @@ export const approvalCard = (question: string, detail?: string): string => {
   return lines.join("\n");
 };
 
-export const reportCard = (report: CompletionReport): string => {
+export const reportCard = (report: CompletionReport, width = fitWidth()): string => {
   const done = report.outcome === "completed";
-  const lines = ["", `  ${done ? leaf("done") : rust(report.outcome)} · ${paper(report.summary)}`];
+  const verdict = done ? "done" : report.outcome;
+  const headLength = 5 + verdict.length;
+  const lines: string[] = [""];
+  wrap(report.summary, Math.max(12, width - headLength)).forEach((segment, index) => {
+    lines.push(
+      index === 0
+        ? `  ${done ? leaf("done") : rust(report.outcome)} · ${paper(segment)}`
+        : `${" ".repeat(headLength)}${paper(segment)}`,
+    );
+  });
   if (report.changedFiles.length > 0) {
     lines.push(`  ${stone("changed")}`);
-    for (const file of report.changedFiles) lines.push(`    ${paper(file)}`);
+    for (const file of report.changedFiles) {
+      lines.push(`    ${paper(clip(file, Math.max(8, width - 4)))}`);
+    }
   }
   if (report.checks.length > 0) {
     lines.push(`  ${stone("checks")}`);
     for (const check of report.checks) {
-      lines.push(`    ${check.passed ? leaf("[pass]") : rust("[fail]")} ${paper(check.command)}`);
+      lines.push(
+        `    ${check.passed ? leaf("[pass]") : rust("[fail]")} ${paper(clip(check.command, Math.max(8, width - 11)))}`,
+      );
     }
   }
   if (report.review) {
+    const head = report.review.verdict === "clear" ? "clear" : "issues";
+    const firstLine = report.review.summary.split("\n")[0] ?? "";
     lines.push(
-      `  ${stone("review")} ${report.review.verdict === "clear" ? leaf("clear") : brass("issues")} · ${paper(report.review.summary.split("\n")[0] ?? "")}`,
+      `  ${stone("review")} ${head === "clear" ? leaf("clear") : brass("issues")} · ${paper(clip(firstLine, Math.max(8, width - (12 + head.length))))}`,
     );
   }
   if (report.tokens) {
@@ -157,18 +236,23 @@ export const stateLine = (to: TaskState): string => {
 export const usageLine = (prompt: number, completion: number): string =>
   `  ${stone("tokens")} ${stone(`${prompt} in / ${completion} out`)}`;
 
-export const resultLine = (name: string, ok: boolean, summary: string): string | null => {
+export const resultLine = (
+  name: string,
+  ok: boolean,
+  summary: string,
+  width = fitWidth(),
+): string | null => {
   if (ok && !summary.toLowerCase().includes("error")) return null;
   const first = summary.split("\n")[0] ?? "";
-  return `  ${rust("✕")} ${stone(name)} ${stone(first)}`;
+  return `  ${rust("✕")} ${stone(name)} ${stone(clip(first, Math.max(8, width - (5 + name.length))))}`;
 };
 
-export const planCard = (text: string): string => {
-  const rule = stone("─".repeat(58));
+export const planCard = (text: string, width = fitWidth()): string => {
+  const rule = stone("─".repeat(Math.max(20, Math.min(58, width - 4))));
   const body = text
     .trim()
     .split("\n")
-    .map((line) => `  ${paper(line)}`)
+    .map((line) => `  ${paper(clip(line, Math.max(8, width - 2)))}`)
     .join("\n");
   return `\n${rule}\n  ${brass("plan")}\n${body}\n${rule}\n`;
 };

@@ -19,19 +19,25 @@ import {
   elapsed,
   emptyDash,
   header,
+  pace,
   planCard,
   recordState,
   recordTool,
   reportCard,
   resultLine,
+  SHORT,
+  spin,
   stateLine,
+  stone,
   timeline,
   toolLine,
   usageLine,
 } from "./dashboard";
 import { scanShortcuts } from "./debt";
 import { loadHomeEnv } from "./env";
+import { clip, fitWidth, wrap } from "./fit";
 import { buildPriorContext } from "./resume";
+import { createStatus } from "./status";
 import { firstRun, setUiOutput, uiWrite } from "./ui";
 import { VERSION } from "./version";
 
@@ -210,8 +216,9 @@ const main = async (): Promise<number> => {
       process.stdout.write("  recent sessions\n");
       for (const session of sessions) {
         const when = new Date(session.created_at).toISOString().slice(0, 16).replace("T", " ");
+        const room = Math.max(16, fitWidth() - 54);
         process.stdout.write(
-          `    ${session.id.slice(0, 8)}  ${session.state.padEnd(18)} ${when}  ${session.task.slice(0, 60)}\n`,
+          `    ${session.id.slice(0, 8)}  ${session.state.padEnd(18)} ${when}  ${clip(session.task, room)}\n`,
         );
       }
     }
@@ -241,9 +248,16 @@ const main = async (): Promise<number> => {
   if (!jsonMode) process.stdout.write(`${header(workspaceRoot, mode, label)}\n\n`);
 
   const readline = createInterface({ input: process.stdin, output: process.stderr });
+  let dash = emptyDash();
+  let pendingText = false;
+  const status = createStatus(
+    jsonMode ? { write: () => undefined } : process.stdout,
+    () => `  ${spin(dash)} ${stone(SHORT[dash.current ?? "queued"])} · ${stone(pace(dash))}`,
+  );
   const autoApprove = args.yes || mode === "auto";
   const sessionAlways = new Set<string>();
   const approver = async (request: ApprovalRequest): Promise<ApprovalOutcome> => {
+    status.stop();
     if (sessionAlways.has(request.summary)) return { approved: true };
     if (autoApprove && request.tier !== "high_impact") {
       process.stderr.write(`  · auto-approved: ${request.summary}\n`);
@@ -270,10 +284,8 @@ const main = async (): Promise<number> => {
     return { approved: answer === "y" || answer === "yes" };
   };
 
-  let dash = emptyDash();
-  let pendingText = false;
-
   const onEvent = (event: AgentEvent): void => {
+    status.note();
     if (event.type !== "text" && pendingText) {
       uiWrite("\n");
       pendingText = false;
@@ -307,6 +319,14 @@ const main = async (): Promise<number> => {
       case "approval":
         break;
     }
+    if (
+      event.type === "state" ||
+      event.type === "tool" ||
+      event.type === "tool_result" ||
+      event.type === "usage"
+    ) {
+      status.arm();
+    }
   };
 
   let priorContext: string | undefined;
@@ -334,6 +354,7 @@ const main = async (): Promise<number> => {
 
   let active: AbortController | null = null;
   process.on("SIGINT", () => {
+    status.stop();
     if (active && !active.signal.aborted) {
       active.abort();
       return;
@@ -349,6 +370,7 @@ const main = async (): Promise<number> => {
     try {
       return await agent.run(task, { signal: controller.signal });
     } finally {
+      status.stop();
       if (pendingText) {
         uiWrite("\n");
         pendingText = false;
@@ -363,6 +385,7 @@ const main = async (): Promise<number> => {
     try {
       await agent.chat(message, { signal: controller.signal });
     } finally {
+      status.stop();
       if (pendingText) {
         uiWrite("\n");
         pendingText = false;
@@ -378,13 +401,26 @@ const main = async (): Promise<number> => {
       return exitCodeFor(report);
     }
 
-    process.stdout.write(`\n  ${chatHint}\n`);
+    const hint = wrap(chatHint, fitWidth() - 2)
+      .map((row) => `  ${row}`)
+      .join("\n");
+    process.stdout.write(`\n${hint}\n`);
+    let awaiting = false;
+    const onResize = (): void => {
+      if (!awaiting) return;
+      const typed = (readline as unknown as { line?: string }).line ?? "";
+      process.stderr.write(`\r\x1b[2Kterminus › ${typed}`);
+    };
+    process.stdout.on("resize", onResize);
     while (true) {
       let line = "";
       try {
+        awaiting = true;
         line = (await readline.question("\nterminus › ")).trim();
       } catch {
         break;
+      } finally {
+        awaiting = false;
       }
       if (line.length === 0) continue;
       if (line === "/quit" || line === "/exit") break;
@@ -407,8 +443,9 @@ const main = async (): Promise<number> => {
       }
       if (line === "/sessions") {
         for (const session of store.recentSessions(workspaceRoot, 10)) {
+          const room = Math.max(16, fitWidth() - 34);
           process.stdout.write(
-            `  ${session.id.slice(0, 8)}  ${session.state.padEnd(18)} ${session.task.slice(0, 60)}\n`,
+            `  ${session.id.slice(0, 8)}  ${session.state.padEnd(18)} ${clip(session.task, room)}\n`,
           );
         }
         continue;
@@ -419,6 +456,7 @@ const main = async (): Promise<number> => {
       }
       await chatOne(line);
     }
+    process.stdout.off("resize", onResize);
     return 0;
   } finally {
     readline.close();
