@@ -46,3 +46,4 @@ license: MIT
    - Provide standard report formats or file templates (e.g. Markdown tables, YAML specs, structured JSON).
 5. **Establish Verification Criteria**:
    - How does the agent or user verify that the skill was executed correctly? (e.g. Running test suites, schema validation, lint checks).
+

@@ -43,3 +43,4 @@ Generates a production-ready, accessible, high-converting landing page adhering 
 - **Responsive Mobile First**: Collapsing navbars, flex-col on mobile, full-width tap targets (min 44px).
 - **Fast First Paint**: Zero layout shifts, system or preloaded fonts, accessible semantic tags (`<header>`, `<main>`, `<section>`, `<footer>`).
 - **Dark Mode Native**: High visual polish with deep slate/charcoal backgrounds (`#0B0F17`) and crisp typography.
+

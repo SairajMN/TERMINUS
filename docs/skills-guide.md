@@ -154,3 +154,4 @@ TERMINUS immediately discovers the new skill:
 terminus --mode plan "add a migration to add status column to orders table"
 ```
 It will automatically apply your zero-downtime checkpoints!
+

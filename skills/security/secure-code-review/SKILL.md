@@ -569,3 +569,4 @@ After completing the review, output a report in the following format. **All 10 i
 | `OWASP ZAP` | — | Web application dynamic scanning |
 
 > **Note:** This checklist is a supplementary review tool and does not replace professional penetration testing. For high-security systems, combine automated scanning + manual code audit + penetration testing.
+

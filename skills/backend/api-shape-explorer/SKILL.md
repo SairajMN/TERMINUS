@@ -55,3 +55,4 @@ For each proposed shape, evaluate against:
 | **Failure Modes** | Are errors returned as typed unions/results or thrown exceptions? |
 | **Testability** | Can dependencies be mocked with zero boilerplate? |
 | **Evolution** | Can new optional parameters be added without breaking existing callers? |
+

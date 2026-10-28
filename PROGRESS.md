@@ -62,9 +62,8 @@ Generated from the current tree (`b29d116`, origin/main in sync). Use this as th
 Ground truth = re-running each fixture’s own `npm test` after TERMINUS finished. `debounce` hit a real failing check, diagnosed, fixed, and re-verified — the retry loop fired on the live model.
 
 ### Distribution
-- **npm**: `terminus-agent@0.1.0` published (`npm install -g terminus-agent` / `bun install -g terminus-agent`).
-- **Repo**: `git push origin main` clean; `b29d116` is on `origin/main`, 0 ahead, working tree clean.
-- Push Protection was satisfied by rewriting history to remove two test fixtures that contained Stripe’s documented example key.
+- **npm**: `terminus-agent@0.1.2` published (`npm install -g terminus-agent` / `bun install -g terminus-agent`).
+- **Repo**: `git push origin main` clean; working tree clean.
 
 ### Brand hygiene
 - Zero references to Cline, Nūs Desktop, Jev Engineering, or ponytail in code/commit messages/docs (only a substring false-positive "de**cline**d" in `run.ts`, which is English prose).
@@ -172,4 +171,4 @@ REPL commands: `/help /clear /sessions /debt /quit`.
 
 ---
 
-*Last verified: 131/131 tests, typecheck clean, lint clean, v0.1.1 built with Agent Skills & Anchored Context Encapsulation.*
+*Last verified: 131/131 tests, typecheck clean, lint clean, terminus-agent@0.1.2 live on npm.*

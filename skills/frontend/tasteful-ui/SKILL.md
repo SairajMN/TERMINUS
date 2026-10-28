@@ -25,3 +25,4 @@ Helps coding agents deliver polished, refined, human-crafted interfaces that avo
    - Truncate long identifiers gracefully with middle ellipses or tooltips.
 5. **Dark Mode Excellence**:
    - True dark mode uses layered tones (`#0B0F17` base, `#111827` cards, `#1F2937` borders) rather than pure `#000000` pitch black against harsh `#FFFFFF`.
+

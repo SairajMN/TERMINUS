@@ -21,3 +21,4 @@ Inspects route files across Node.js (Express, Fastify, Next.js App Router), Pyth
    - Define `securitySchemes` in the components object and attach `security` blocks to protected routes.
 4. **Output Generation**:
    - Emit standard OpenAPI 3.0.3 specification with tags, operationIds, descriptions, and example payloads.
+
