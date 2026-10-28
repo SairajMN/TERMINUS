@@ -1,6 +1,7 @@
 import { type Dirent, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { DEFAULT_SKIP_DIRS } from "@terminus/shared";
+import { discoverSkills, matchSkills } from "./skills";
 
 const MAX_DEPTH = 3;
 const MANIFESTS = ["package.json", "pyproject.toml", "Cargo.toml", "go.mod"] as const;
@@ -57,12 +58,30 @@ export const buildRepoMap = (root: string): string => {
   return lines.join("\n");
 };
 
-export const loadInstructions = (root: string): string | null => {
+export const loadInstructions = (root: string, task?: string): string | null => {
+  let instructions: string | null = null;
   for (const name of ["AGENTS.md", "TERMINUS.md", ".terminus/instructions.md"]) {
     try {
       const content = readFileSync(join(root, name), "utf8").trim();
-      if (content.length > 0) return content;
+      if (content.length > 0) {
+        instructions = content;
+        break;
+      }
     } catch {}
   }
-  return null;
+
+  if (task) {
+    try {
+      const skillsDir = join(root, "skills");
+      const discovered = discoverSkills(skillsDir);
+      const matched = matchSkills(task, discovered);
+      if (matched.length > 0 && matched[0]) {
+        const top = matched[0];
+        const skillBlock = `[Active Skill: ${top.name}]\n${top.content}`;
+        instructions = instructions ? `${instructions}\n\n${skillBlock}` : skillBlock;
+      }
+    } catch {}
+  }
+
+  return instructions;
 };

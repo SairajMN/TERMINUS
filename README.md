@@ -95,6 +95,17 @@ command or change policy.
 | Evidence-based reports | changed files, commands run, per-check pass/fail, token usage — from observed results, never from prose |
 | Persistent sessions | SQLite audit log; `--resume <id>` continues with an earlier session's honest context |
 
+## Agent Skills (OWASP Security, UI/UX, API Design)
+
+TERMINUS natively discovers and applies reusable **Agent Skills** (`SKILL.md`) located in `skills/` or `~/.terminus/skills/`. The Context Engine automatically matches your task intent and injects domain-specific Standard Operating Procedures (SOPs) into Layer 2 of Context:
+
+- **Security**: `secure-code-review` — Full OWASP Top 10 systematic vulnerability review with vulnerable vs fixed examples.
+- **Frontend / UI/UX**: `design-system-builder`, `landing-page-scaffold`, `tasteful-ui` — Token extraction, conversion landing pages, and polished aesthetics.
+- **Backend**: `api-shape-explorer`, `route-to-openapi` — "Design it twice" API exploration and OpenAPI 3.0 generation.
+- **Skill Development**: `skill-builder` — Meta-skill to author, test, and audit custom skills.
+
+👉 **Read the full [Beginner's Skills Guide](docs/skills-guide.md)** for step-by-step instructions and copy-paste examples.
+
 ## CLI
 
 ```

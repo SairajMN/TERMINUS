@@ -94,7 +94,7 @@ export function createAgent(options: RunTaskOptions): AgentSession {
 
   const root = options.workspaceRoot;
 
-  const ensureBootstrapped = (): { instructions: string | null; repoMap: string } => {
+  const ensureBootstrapped = (task?: string): { instructions: string | null; repoMap: string } => {
     if (bootstrapped) {
       const map = evidence.all().find((item) => item.source === "repository map");
       const guide = evidence.all().find((item) => item.source === "project instructions");
@@ -104,7 +104,7 @@ export function createAgent(options: RunTaskOptions): AgentSession {
       };
     }
     bootstrapped = true;
-    const instructions = loadInstructions(root);
+    const instructions = loadInstructions(root, task);
     if (instructions) {
       evidence.add({
         kind: "instruction",
@@ -462,7 +462,7 @@ export function createAgent(options: RunTaskOptions): AgentSession {
 
     try {
       state("investigating");
-      const { instructions, repoMap } = ensureBootstrapped();
+      const { instructions, repoMap } = ensureBootstrapped(task);
       let prior = "";
       if (options.priorContext) {
         const parsedCapsule = parseCapsule(options.priorContext);

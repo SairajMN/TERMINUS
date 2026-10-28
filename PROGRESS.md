@@ -9,7 +9,7 @@ Generated from the current tree (`b29d116`, origin/main in sync). Use this as th
 ### Build system
 - **Monorepo** — bun workspaces, TypeScript strict (`tsc --noEmit` clean), Biome lint+format clean.
 - **Packages**: `shared`, `model-gateway`, `tool-runtime`, `permission-engine`, `context-engine`, `session-store`, `agent-runtime`, `research`, `apps/cli`.
-- **Tests**: 129/129 passing across 25 files; `bun test` is the gate before every commit.
+- **Tests**: 131/131 passing across 26 files; `bun test` is the gate before every commit.
 
 ### Model integration (the hackathon requirement: real Nemotron call)
 - **Gateway**: OpenAI-compatible client pointed at `https://api.tokenfactory.us-central1.nebius.com/v1/`, default model `nvidia/nemotron-3-super-120b-a12b`, Anthropic fallback, streaming with `tool_calls` delta assembly, usage tokens tracked end-to-end.
@@ -172,4 +172,4 @@ REPL commands: `/help /clear /sessions /debt /quit`.
 
 ---
 
-*Last verified: 129/129 tests, typecheck clean, lint clean, v0.1.1 built with Anchored Context Encapsulation.*
+*Last verified: 131/131 tests, typecheck clean, lint clean, v0.1.1 built with Agent Skills & Anchored Context Encapsulation.*
