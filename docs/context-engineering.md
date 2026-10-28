@@ -100,6 +100,37 @@ summary that could discard the one exact line that mattered.
 It is regenerated per task, so it never goes stale, and it is what allows the
 first model request to be small.
 
+## Anchored Context Encapsulation (ACE)
+
+TERMINUS incorporates advanced context transfer and compression principles drawn from:
+1. **Universal Context Capsules** ([Jake Werner's LLM-context-shifting](https://github.com/JakeWerner/LLM-context-shifting)): Compressing ~4,000 tokens into ~35-token capsules (~98-99% reduction) with an invariant constraint field (`C:<constraints>`) that survives across model sessions and turns.
+2. **Agentic Compression Taxonomy & Failure Defenses** ([Wang et al., EMNLP 2026: *Context Compression for LLM Agents: A Survey of Methods, Failure Modes, and Evaluation*](https://aclanthology.org/2026.emnlp-main.2396/)): Software engineering agents have heterogeneous trajectories combining observations, reasoning traces, and tool executions. ACE protects against three core failure modes identified in the survey:
+   - **F1 (Pre-compression Decision Error)**: Dropping unverified dependencies or pending test failures. Solved via `V:<pass;fail>` which binds the verifier state into the capsule.
+   - **F2 (In-compression Information Loss)**: Discarding exact hashes, line numbers, or security policies during summarization. Solved via verbatim content anchors `A:<path#sha256[:7]>`.
+   - **F3 (Post-compression Access Failure)**: Stale decoded state or losing the pointer to original ground truth. Solved via automatic freshness verification upon hydration against the `EvidenceStore`.
+
+### Capsule Format
+
+```text
+Capsule: G:<goal>|T:<topic>|E:<entities>|I:<instructions>|C:<constraints>|A:<anchors>|V:<verification>|SUM:<summary>
+```
+
+- `G:<goal>`: Primary objective (1-5 words).
+- `T:<topic>`: Domain or module area (1-3 words).
+- `E:<entities>`: Key active files/symbols (up to 5 items).
+- `I:<instructions>`: Active directive or remaining goal (5-10 words).
+- `C:<constraints>`: Invariant policies (e.g. `workspace-only`, `re-verify`, `no-secrets`).
+- `A:<anchors>`: Pinned file content hashes (`path#hashPrefix`) ensuring zero-loss retrieval.
+- `V:<verification>`: Verified check status (`pass:cmd1;fail:cmd2`).
+- `SUM:<summary>`: Compact distillation of decisions and changes made.
+
+### Hydration & Freshness Verification
+
+When an earlier session is resumed or context is shifted:
+1. The capsule is parsed into a structured AST.
+2. Anchors (`A:`) are validated against disk using `EvidenceStore.checkFresh()`. If any anchored file was modified outside the agent, an alert is injected (`⚠️ Stale Anchors`), forcing the model to re-read rather than hallucinatory patching.
+3. Enforced constraints (`C:`) are preserved in prompt directives and policy gates.
+
 ## Where this goes next
 
 - symbol-level retrieval (language-server definitions/references) plugs in as

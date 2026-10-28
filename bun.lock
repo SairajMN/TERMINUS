@@ -28,6 +28,7 @@
       },
       "dependencies": {
         "@terminus/agent-runtime": "workspace:*",
+        "@terminus/context-engine": "workspace:*",
         "@terminus/model-gateway": "workspace:*",
         "@terminus/session-store": "workspace:*",
         "@terminus/shared": "workspace:*",

@@ -10,7 +10,8 @@ export const uiWrite = (text: string): void => {
   out.write(text);
 };
 
-const colored = Boolean(process.stdout.isTTY) && !process.env.NO_COLOR;
+const colored =
+  Boolean(process.stdout.isTTY) && !process.env.NO_COLOR && process.env.NODE_ENV !== "test";
 const paint = (rgb: string) => (text: string) =>
   colored ? `\x1b[38;2;${rgb}m${text}\x1b[0m` : text;
 

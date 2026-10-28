@@ -48,4 +48,29 @@ describe("agent session", () => {
     expect(JSON.stringify(freshRequest?.messages)).not.toContain("first task");
     expect(JSON.stringify(freshRequest?.messages)).toContain("third task");
   });
+
+  it("hydrates a structured prior context capsule into task instructions", async () => {
+    let call = 0;
+    const gateway = mockGateway(() => {
+      call++;
+      if (call === 1) return [{ type: "text", text: "Plan: check capsule context." }];
+      return [{ type: "text", text: "Completed resumed task." }];
+    });
+
+    const agent = createAgent({
+      workspaceRoot: root,
+      gateway,
+      approver: approve,
+      priorContext:
+        "Capsule: G:Add auth|T:Security|E:src/auth.ts|I:Validate JWT expiration|C:workspace-only,no-network|SUM:Implemented verifyToken fixture",
+    });
+
+    await agent.run("resume auth audit");
+    const firstRequest = gateway.requests[0];
+    const userMsg = firstRequest?.messages[0]?.content[0];
+    const text = userMsg?.type === "text" ? userMsg.text : "";
+    expect(text).toContain("[Context Capsule: Add auth (Security)]");
+    expect(text).toContain("Enforced Constraints: workspace-only, no-network");
+    expect(text).toContain("Validate JWT expiration");
+  });
 });

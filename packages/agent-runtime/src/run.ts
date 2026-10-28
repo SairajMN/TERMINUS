@@ -1,6 +1,12 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { buildRepoMap, EvidenceStore, loadInstructions } from "@terminus/context-engine";
+import {
+  buildRepoMap,
+  EvidenceStore,
+  hydrateCapsule,
+  loadInstructions,
+  parseCapsule,
+} from "@terminus/context-engine";
 import type { ChatMessage, ContentPart, ModelGateway } from "@terminus/model-gateway";
 import { toToolSpecs } from "@terminus/model-gateway";
 import { PermissionEngine } from "@terminus/permission-engine";
@@ -457,7 +463,16 @@ export function createAgent(options: RunTaskOptions): AgentSession {
     try {
       state("investigating");
       const { instructions, repoMap } = ensureBootstrapped();
-      const prior = options.priorContext ? `\n\n${options.priorContext}` : "";
+      let prior = "";
+      if (options.priorContext) {
+        const parsedCapsule = parseCapsule(options.priorContext);
+        if (parsedCapsule) {
+          const hydrated = hydrateCapsule(parsedCapsule, root, evidence);
+          prior = `\n\n${hydrated.prompt}`;
+        } else {
+          prior = `\n\n${options.priorContext}`;
+        }
+      }
       const firstMessage = messages.length === 0;
       messages.push({
         role: "user",

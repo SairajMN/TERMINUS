@@ -22,6 +22,11 @@ describe("resume context", () => {
     expect(result.context).toContain("completed");
     expect(result.context).toContain("src/api.ts");
     expect(result.context).toContain("npm test -> pass");
+    expect(result.capsule).toBeDefined();
+    expect(result.capsule).toContain("Capsule: ");
+    expect(result.capsule).toContain("G:add pagination");
+    expect(result.capsule).toContain("E:src/api.ts");
+    expect(result.capsule).toContain("C:workspace-only,re-verify");
     store.close();
   });
 

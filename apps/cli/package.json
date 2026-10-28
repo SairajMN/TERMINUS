@@ -1,12 +1,13 @@
 {
   "name": "@terminus/cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "bin": {
     "terminus": "src/main.ts"
   },
   "dependencies": {
     "@terminus/agent-runtime": "workspace:*",
+    "@terminus/context-engine": "workspace:*",
     "@terminus/model-gateway": "workspace:*",
     "@terminus/session-store": "workspace:*",
     "@terminus/shared": "workspace:*"

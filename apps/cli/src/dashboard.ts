@@ -2,7 +2,8 @@ import type { CompletionReport, PermissionNote, TaskState } from "@terminus/shar
 import { clip, fitWidth, shortPath, wrap } from "./fit";
 import { VERSION } from "./version";
 
-const colored = Boolean(process.stdout.isTTY) && !process.env.NO_COLOR;
+const colored =
+  Boolean(process.stdout.isTTY) && !process.env.NO_COLOR && process.env.NODE_ENV !== "test";
 const paint = (rgb: string) => (text: string) =>
   colored ? `${rgbText(rgb)}${text}${rgbReset()}` : text;
 
