@@ -12,7 +12,23 @@ prose. Powered by NVIDIA Nemotron models on Nebius Token Factory.
 research → map → plan → approve → edit → run checks → (fail → diagnose → fix) → report
 ```
 
-## Install
+## Table of contents
+
+- [Install](#install)
+- [Quick start (from source)](#quick-start-from-source)
+- [How Nemotron powers TERMINUS](#how-nemotron-powers-terminus)
+- [Deep research with citations](#deep-research-with-citations)
+- [How it works — agentic flow](#how-it-works--agentic-flow)
+- [Harness & permission gate](#harness--permission-gate)
+- [What makes it reliable](#what-makes-it-reliable)
+- [Agent Skills](#agent-skills-owasp-security-uiux-api-design)
+- [CLI](#cli)
+- [Demo](#demo)
+- [Architecture](#architecture)
+- [Commands](#commands)
+- [Documentation](#documentation)
+- [License](#license)
+
 
 One command, either package manager (Node 22.5+; bun works too):
 
@@ -84,6 +100,175 @@ codes: it searches official documentation, keeps titles/URLs/excerpts as
 **untrusted evidence**, and must cite sources as `[title](url)` in its plan.
 Search results never reach the permission engine — they cannot authorize a
 command or change policy.
+
+## How it works — agentic flow
+
+### Task loop
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant R as agent-runtime
+    participant G as model-gateway
+    participant P as permission-engine
+    participant T as tool-runtime
+    participant V as verification
+
+    U->>R: task + workspace
+    R->>R: collect repo map + AGENTS.md
+    R->>G: plan request (read-only tools)
+    G-->>R: exploration tool calls
+    R->>T: read_file / search / list_dir
+    T-->>R: results
+    G-->>R: plan text
+    R->>U: show plan
+    U-->>R: approve | reject+feedback
+    R->>G: implement request (all tools)
+    G-->>R: write_file / edit_file / run_command
+    R->>P: evaluate(action, mode)
+    P-->>R: allow | ask | deny
+    R->>U: approval request (if ask)
+    U-->>R: yes / no
+    R->>T: execute (after freshness check)
+    T-->>R: tool result
+    R->>V: npm run test / lint / build
+    alt checks pass
+        V-->>R: pass
+        R->>U: completion report with evidence
+    else checks fail
+        V-->>R: failure output
+        R->>G: diagnose request with failure output
+        G-->>R: fix tool calls
+        R->>V: re-run checks (max 2 cycles)
+    end
+```
+
+### State machine
+
+Every task has exactly one state; transitions are validated, illegal jumps
+throw. Persisted to the session store on every change.
+
+```mermaid
+stateDiagram-v2
+    [*] --> queued
+    queued --> investigating
+    investigating --> planning
+    planning --> awaiting_approval
+    awaiting_approval --> planning: feedback given
+    awaiting_approval --> implementing: approved
+    awaiting_approval --> cancelled: rejected
+    implementing --> verifying
+    verifying --> completed: all checks pass
+    verifying --> failed_check: a check failed
+    failed_check --> diagnosing: retries left
+    failed_check --> completed: report honestly failed
+    diagnosing --> implementing
+    implementing --> cancelled: aborted
+    verifying --> cancelled: aborted
+    completed --> [*]
+    cancelled --> [*]
+```
+
+### Tool execution pipeline
+
+```mermaid
+flowchart LR
+    A[tool_use from model] --> B{schema valid?}
+    B -- no --> E[error result to model]
+    B -- yes --> C{permission gate}
+    C -- deny --> E
+    C -- ask --> D[user approval]
+    D -- no --> E
+    D -- yes --> F{freshness check}
+    C -- allow --> F
+    F -- stale --> G[stale error: re-read first]
+    G --> E
+    F -- ok --> H[execute tool]
+    H --> I[bounded, redacted result]
+    I --> E
+    E --> K[result back into conversation]
+```
+
+### Research flow (Tavily)
+
+`web_research` is a read-tier tool: visible while planning, never maps to a
+shell action, and its output is stored as **untrusted** evidence with URLs
+preserved.
+
+```mermaid
+sequenceDiagram
+    participant M as Model
+    participant R as agent-runtime
+    participant T as web_research
+    participant V as Tavily API
+    participant E as EvidenceStore
+
+    M->>R: tool_use web_research(query)
+    R->>R: actionFor -> null (not a shell action)
+    R->>T: execute
+    T->>V: POST api.tavily.com/search (Bearer)
+    V-->>T: results (title, url, content)
+    T-->>R: numbered excerpts (redacted)
+    R->>E: add as documentation, trust=untrusted
+    R-->>M: tool_result with URLs
+    M->>R: plan citing [title](url)
+```
+
+## Harness & permission gate
+
+The harness (tools, permissions, context, verification) is model-independent.
+The gate evaluates the **proposed action only**, never conversation text.
+
+Order: hard-deny regex → fast-path allowlist → risk-tier classification →
+user approval. Session-based `[a]lways` remembers per-session, never global.
+Local policy (`~/.terminus/policy.local.json`) can only add restrictions.
+
+### Model gateway selection
+
+```mermaid
+flowchart LR
+    E[NEBIUS_API_KEY set?] -- yes --> N[nebiusGateway<br/>nvidia/nemotron-3-super-120b-a12b]
+    E -- no --> A[anthropicGateway]
+    F[--provider / --model flags] --> G[override]
+    G --> N
+    G --> A
+    N --> R[ModelGateway]
+    A --> R
+    M[mockGateway] --> R
+```
+
+Adding another provider means implementing one function. Nothing else in the
+runtime changes.
+
+### Package layering
+
+```mermaid
+flowchart TD
+    cli["apps/cli<br/>terminal host: prompts, colors, approvals"]
+    runtime["@terminus/agent-runtime<br/>task loop + state machine"]
+    gateway["@terminus/model-gateway<br/>provider abstraction"]
+    tools["@terminus/tool-runtime<br/>workspace tools + command runner"]
+    perms["@terminus/permission-engine<br/>deterministic policy gate"]
+    context["@terminus/context-engine<br/>evidence store + repository map"]
+    store["@terminus/session-store<br/>SQLite sessions + audit log"]
+    shared["@terminus/shared<br/>contracts: types, state machine, paths"]
+
+    cli --> runtime
+    runtime --> gateway
+    runtime --> tools
+    runtime --> perms
+    runtime --> context
+    runtime --> store
+    runtime --> shared
+    tools --> shared
+    perms --> shared
+    context --> shared
+    gateway --> shared
+    store --> shared
+```
+
+Rules: `shared` depends on nothing above it; host apps depend on the runtime,
+never the reverse; tools never know which model produced their input.
 
 ## What makes it reliable
 
