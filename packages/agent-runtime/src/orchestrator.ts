@@ -12,6 +12,8 @@ import { webResearch } from "@terminus/research";
 import type { Approver, ToolDefinition } from "@terminus/shared";
 import { actionFor, createTools } from "@terminus/tool-runtime";
 import { z } from "zod";
+import { BlueTeamEngine } from "./blueteam/engine";
+import type { BlueTeamReport } from "./blueteam/types";
 import {
   type AgentClaim,
   type AgentClaimReport,
@@ -27,6 +29,8 @@ import {
   type TrajectorySignals,
 } from "./harness";
 import { EvidenceLedger } from "./ledger";
+import { RedTeamEngine } from "./redteam/engine";
+import type { RedTeamCampaignReport } from "./redteam/types";
 import { scanFiles } from "./sast";
 import { type OrchestratorVerdictReport, VerificationEngine } from "./verification-engine";
 import { verifyEditedFile } from "./verifier";
@@ -68,8 +72,13 @@ export interface OrchestrationOptions {
   workspaceRoot: string;
   gateway: ModelGateway;
   approver: Approver;
+  sessionId?: string;
+  store?: {
+    saveEvidenceRecord(sessionId: string, record: unknown): void;
+  };
   maxReworkCycles?: number;
   runAdversarialPass?: boolean;
+  runRedTeamPass?: boolean;
   trajectorySignals?: TrajectorySignals;
   signal?: AbortSignal;
   onEvent?: (event: OrchestratorProgressEvent) => void;
@@ -86,6 +95,8 @@ export interface OrchestrationResult {
   readonly workerReports: AgentClaimReport[];
   readonly verdictReport: OrchestratorVerdictReport;
   readonly reworkCyclesUsed: number;
+  readonly redTeamReport?: RedTeamCampaignReport;
+  readonly blueTeamReport?: BlueTeamReport;
 }
 
 const toSpecs = (tools: ToolDefinition<never>[]) =>
@@ -276,6 +287,23 @@ export class MasterOrchestrator {
           continue;
         }
 
+        if (decision.action === "ask") {
+          const outcome = await options.approver({
+            summary: `${contract.role} (${contract.agentId}) requests: ${call.name} ${JSON.stringify(call.input).slice(0, 140)}`,
+            detail: JSON.stringify(call.input, null, 2),
+            tier: decision.tier,
+          });
+          if (!outcome.approved) {
+            resultParts.push({
+              type: "tool_result",
+              tool_use_id: call.id,
+              content: `blocked by user: action rejected${outcome.feedback ? ` (${outcome.feedback})` : ""}`,
+              is_error: true,
+            });
+            continue;
+          }
+        }
+
         // Capture pre-write snapshot content for EvidenceLedger DIFF record
         let beforeContent: string | null = null;
         if (action?.kind === "file_write") {
@@ -437,7 +465,15 @@ export class MasterOrchestrator {
   async orchestrate(task: string, options: OrchestrationOptions): Promise<OrchestrationResult> {
     const taskId = `TASK-${Date.now().toString(36).toUpperCase()}`;
     const machine = new VerificationStateMachine();
-    const ledger = new EvidenceLedger();
+    const ledger = new EvidenceLedger((rec) => {
+      if (options.store && options.sessionId) {
+        try {
+          options.store.saveEvidenceRecord(options.sessionId, rec);
+        } catch {
+          // ignore storage error in standalone/test execution
+        }
+      }
+    });
     const maxRework = options.maxReworkCycles ?? 1;
 
     // 1. Repository analysis + Intelligent Task & Trajectory Routing
@@ -549,6 +585,23 @@ export class MasterOrchestrator {
       break;
     }
 
+    let redTeamReport: RedTeamCampaignReport | undefined;
+    let blueTeamReport: BlueTeamReport | undefined;
+
+    if (options.runRedTeamPass) {
+      const redTeam = new RedTeamEngine(options.workspaceRoot);
+      const blueTeam = new BlueTeamEngine(options.workspaceRoot);
+      const permEngine = new PermissionEngine({
+        workspaceRoot: options.workspaceRoot,
+        mode: "act",
+      });
+
+      redTeamReport = await redTeam.runCampaign(permEngine, ledger);
+      if (redTeamReport.exploitedCount > 0) {
+        blueTeamReport = blueTeam.remediate(redTeamReport.findings, ledger);
+      }
+    }
+
     return {
       taskId,
       routing,
@@ -558,6 +611,8 @@ export class MasterOrchestrator {
       workerReports,
       verdictReport: verdictReport as OrchestratorVerdictReport,
       reworkCyclesUsed,
+      redTeamReport,
+      blueTeamReport,
     };
   }
 }

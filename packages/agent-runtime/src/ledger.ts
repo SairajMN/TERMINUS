@@ -50,6 +50,8 @@ export class EvidenceLedger {
   private readonly counters = new Map<EvidenceRecordKind, number>();
   private lastChainHash = "0".repeat(64);
 
+  constructor(private readonly onAppend?: (record: EvidenceRecord) => void) {}
+
   private mintId(kind: EvidenceRecordKind): string {
     const next = (this.counters.get(kind) ?? 0) + 1;
     this.counters.set(kind, next);
@@ -88,6 +90,7 @@ export class EvidenceLedger {
 
     this.records.push(record);
     this.byId.set(id, record);
+    this.onAppend?.(record);
     return record;
   }
 
@@ -209,5 +212,33 @@ export class EvidenceLedger {
       prevHash = rec.chainHash;
     }
     return { valid: true };
+  }
+
+  exportEvidenceManifest(): {
+    version: number;
+    finalChainHash: string;
+    recordCount: number;
+    records: readonly EvidenceRecord[];
+    integrity: { valid: boolean; brokenAtId?: string };
+  } {
+    return {
+      version: 1,
+      finalChainHash: this.lastChainHash,
+      recordCount: this.records.length,
+      records: this.records,
+      integrity: this.verifyIntegrity(),
+    };
+  }
+
+  static fromRecords(records: readonly EvidenceRecord[]): EvidenceLedger {
+    const ledger = new EvidenceLedger();
+    for (const r of records) {
+      ledger.records.push(r);
+      ledger.byId.set(r.id, r);
+      ledger.lastChainHash = r.chainHash;
+      const currentCounter = ledger.counters.get(r.kind) ?? 0;
+      ledger.counters.set(r.kind, currentCounter + 1);
+    }
+    return ledger;
   }
 }

@@ -223,6 +223,18 @@ export async function dispatchBridgeRpc(
         String(params.apiKey ?? ""),
       );
       return { saved: true };
+    case "saveInstructionFile":
+      bridge.saveInstructionFile(String(params.path ?? ""), String(params.content ?? ""));
+      return { saved: true };
+    case "runRedTeamPass":
+      return bridge.runRedTeamPass(
+        typeof params.workspaceRoot === "string" ? params.workspaceRoot : undefined,
+      );
+    case "runAntiREAHarden":
+      return bridge.runAntiREAHarden(
+        typeof params.workspaceRoot === "string" ? params.workspaceRoot : undefined,
+        params.options as never,
+      );
     default:
       throw new Error(`Unknown AgentRuntimeBridge RPC method: "${method}"`);
   }

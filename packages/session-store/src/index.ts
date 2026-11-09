@@ -108,6 +108,20 @@ export class SessionStore {
         verdict TEXT NOT NULL,
         reason TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS evidence_records (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        agent_id TEXT NOT NULL,
+        timestamp INTEGER NOT NULL,
+        subject TEXT NOT NULL,
+        passed INTEGER NOT NULL,
+        exit_code INTEGER,
+        summary TEXT NOT NULL,
+        raw_output TEXT NOT NULL,
+        content_hash TEXT NOT NULL,
+        chain_hash TEXT NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS workspace_settings (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL,
@@ -213,6 +227,86 @@ export class SessionStore {
     } catch {
       return undefined;
     }
+  }
+
+  saveEvidenceRecord(
+    sessionId: string,
+    record: {
+      id: string;
+      kind: string;
+      agentId: string;
+      timestamp: number;
+      subject: string;
+      passed: boolean;
+      exitCode?: number;
+      summary: string;
+      rawOutput: string;
+      contentHash: string;
+      chainHash: string;
+    },
+  ): void {
+    this.db
+      .query(
+        "INSERT OR REPLACE INTO evidence_records (id, session_id, kind, agent_id, timestamp, subject, passed, exit_code, summary, raw_output, content_hash, chain_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      )
+      .run(
+        record.id,
+        sessionId,
+        record.kind,
+        record.agentId,
+        record.timestamp,
+        record.subject,
+        record.passed ? 1 : 0,
+        record.exitCode ?? null,
+        record.summary,
+        record.rawOutput,
+        record.contentHash,
+        record.chainHash,
+      );
+  }
+
+  listEvidenceRecords(sessionId: string): {
+    id: string;
+    kind: string;
+    agentId: string;
+    timestamp: number;
+    subject: string;
+    passed: boolean;
+    exitCode?: number;
+    summary: string;
+    rawOutput: string;
+    contentHash: string;
+    chainHash: string;
+  }[] {
+    const rows = this.db
+      .query("SELECT * FROM evidence_records WHERE session_id = ? ORDER BY timestamp ASC")
+      .all(sessionId) as {
+      id: string;
+      kind: string;
+      agent_id: string;
+      timestamp: number;
+      subject: string;
+      passed: number;
+      exit_code: number | null;
+      summary: string;
+      raw_output: string;
+      content_hash: string;
+      chain_hash: string;
+    }[];
+
+    return rows.map((r) => ({
+      id: r.id,
+      kind: r.kind,
+      agentId: r.agent_id,
+      timestamp: r.timestamp,
+      subject: r.subject,
+      passed: Boolean(r.passed),
+      exitCode: r.exit_code ?? undefined,
+      summary: r.summary,
+      rawOutput: r.raw_output,
+      contentHash: r.content_hash,
+      chainHash: r.chain_hash,
+    }));
   }
 
   close(): void {

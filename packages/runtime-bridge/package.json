@@ -6,6 +6,7 @@
   "types": "src/index.ts",
   "dependencies": {
     "@terminus/agent-runtime": "workspace:*",
+    "@terminus/anti-rea": "workspace:*",
     "@terminus/context-engine": "workspace:*",
     "@terminus/extension-host": "workspace:*",
     "@terminus/extension-sdk": "workspace:*",

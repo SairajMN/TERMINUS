@@ -348,4 +348,98 @@ describe("TERMINUS Verified Multi-Agent Harness Architecture (OO-Harness + Evide
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  it("8. Orchestrator enforces human approval on ask decisions: blocks tool on user rejection and persists ledger", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "terminus-vh-ask-"));
+    try {
+      writeFileSync(join(dir, "config.ts"), "export const DB_PORT = 5432;\n");
+
+      let approverCalled = false;
+      const approver = async (_req: { summary: string; tier: string }) => {
+        approverCalled = true;
+        // User rejects the sensitive command
+        return { approved: false, feedback: "database migrations forbidden" };
+      };
+
+      const turns: ModelEvent[][] = [
+        [
+          {
+            type: "tool_use",
+            id: "call-mig",
+            name: "run_command",
+            input: { command: "python3 scripts/migrate.py" },
+          },
+        ],
+        [{ type: "text", text: "Migration was rejected, stopping." }],
+      ];
+      let idx = 0;
+      const gw = mockGateway(() => turns[idx++] ?? []);
+
+      const orchestrator = new MasterOrchestrator();
+      const result = await orchestrator.orchestrate("Run database migration", {
+        workspaceRoot: dir,
+        gateway: gw,
+        approver,
+        runAdversarialPass: false,
+      });
+
+      expect(approverCalled).toBe(true);
+      // Ensure the rejected command was NOT recorded as a successful CMD_RUN in the ledger
+      expect(result.ledger.byKind("CMD_RUN").length).toBe(0);
+      expect(result.ledger.verifyIntegrity().valid).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("9. EvidenceLedger durable persistence: saves records to SQLite session store and verifies integrity on reload", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "terminus-vh-persist-"));
+    try {
+      writeFileSync(join(dir, "calc.ts"), "export const square = (x: number) => x * x;\n");
+
+      const savedRecords: unknown[] = [];
+      const mockStore = {
+        saveEvidenceRecord: (_sId: string, rec: unknown) => {
+          savedRecords.push(rec);
+        },
+      };
+
+      const turns: ModelEvent[][] = [
+        [
+          {
+            type: "tool_use",
+            id: "call-read",
+            name: "read_file",
+            input: { path: "calc.ts" },
+          },
+        ],
+        [{ type: "text", text: "Read calc.ts successfully." }],
+      ];
+      let idx = 0;
+      const gw = mockGateway(() => turns[idx++] ?? []);
+
+      const orchestrator = new MasterOrchestrator();
+      const result = await orchestrator.orchestrate("Analyze calc.ts", {
+        workspaceRoot: dir,
+        gateway: gw,
+        approver: async () => ({ approved: true }),
+        store: mockStore,
+        sessionId: "SESSION-PERSIST-1",
+        runAdversarialPass: false,
+      });
+
+      expect(savedRecords.length).toBeGreaterThan(0);
+      const manifest = result.ledger.exportEvidenceManifest();
+      expect(manifest.recordCount).toBe(result.ledger.all().length);
+      expect(manifest.integrity.valid).toBe(true);
+      expect(manifest.finalChainHash).toHaveLength(64);
+
+      // Rehydrate a new EvidenceLedger from persisted records and verify chain integrity holds
+      const rehydrated = EvidenceLedger.fromRecords(result.ledger.all());
+      expect(rehydrated.verifyIntegrity().valid).toBe(true);
+      expect(rehydrated.all().length).toBe(result.ledger.all().length);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });

@@ -12,8 +12,10 @@ import {
   inheritHarness,
   MasterOrchestrator,
   type OrchestratorVerdictReport,
+  RedTeamEngine,
   SUBAGENT_REGISTRY,
 } from "@terminus/agent-runtime";
+import { AntiREAEngine, type ProtectionOptions } from "@terminus/anti-rea";
 import {
   analyzeProject,
   buildRepoMap,
@@ -41,6 +43,7 @@ import { PermissionEngine } from "@terminus/permission-engine";
 import { type PermissionAuditRow, SessionStore } from "@terminus/session-store";
 import type {
   ApprovalOutcome,
+  Approver,
   CompletionReport,
   Mode,
   PermissionTier,
@@ -213,6 +216,7 @@ interface ManagedSessionRuntime {
     }
   >;
   sessionApprovedPatterns: Set<string>;
+  approver?: Approver;
 }
 
 const computeUnifiedDiff = (
@@ -460,6 +464,7 @@ export class TerminusRuntimeBridge {
 
       return decisionPromise;
     };
+    runtime.approver = approver;
 
     const getDynamicExtraTools = (): ToolDefinition<never>[] => {
       const effectiveMode: Mode = mode === "orchestrate" ? "act" : mode;
@@ -840,7 +845,9 @@ export class TerminusRuntimeBridge {
       const result = await this.orchestrator.orchestrate(task, {
         workspaceRoot: runtime.workspaceRoot,
         gateway,
-        approver: async () => ({ approved: true }),
+        approver: runtime.approver ?? (async () => ({ approved: true })),
+        sessionId: runtime.sessionId,
+        store: this.store,
         signal: runtime.abortController.signal,
         executionGate: runtime.gate,
         extraTools,
@@ -1578,6 +1585,19 @@ export class TerminusRuntimeBridge {
       },
       auditLogs: this.store.listPermissionAudit(100),
     };
+  }
+
+  runRedTeamPass(workspaceRoot?: string) {
+    const root = workspaceRoot ?? this.defaultWorkspaceRoot;
+    const engine = new RedTeamEngine(root);
+    const perm = new PermissionEngine({ workspaceRoot: root, mode: "act" });
+    return engine.runCampaign(perm);
+  }
+
+  runAntiREAHarden(workspaceRoot?: string, options?: ProtectionOptions) {
+    const root = workspaceRoot ?? this.defaultWorkspaceRoot;
+    const engine = new AntiREAEngine();
+    return engine.protect(root, options);
   }
 
   async shutdown(): Promise<void> {

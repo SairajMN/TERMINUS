@@ -1,0 +1,10 @@
+{
+  "name": "@terminus/anti-rea",
+  "version": "0.3.2",
+  "description": "TERMINUS Anti-Reverse Engineering Agent (Anti-REA) Release Protection & Functional Equivalence Engine",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "@terminus/shared": "workspace:*"
+  }
+}

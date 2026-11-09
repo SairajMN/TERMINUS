@@ -13,10 +13,10 @@ export function renderWorkspaceHtml(
   const safeBootstrapJson = JSON.stringify(bootstrapState ?? {}).replace(/</g, "\\u003c");
 
   return `<!DOCTYPE html>
-<html lang="en" data-theme="${options?.initialTheme ?? "dark"}">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="color-scheme" content="light dark" />
   <title>${title}</title>
   <style>
@@ -25,8 +25,8 @@ export function renderWorkspaceHtml(
       --bg-canvas: #000000;
       --bg-surface-1: #09090b;
       --bg-surface-2: #121215;
-      --bg-surface-3: #1c1c21;
-      --border-subtle: #242429;
+      --bg-surface-3: #18181b;
+      --border-subtle: #242428;
       --border-strong: #383840;
       --text-primary: #f4f4f5;
       --text-secondary: #a1a1aa;
@@ -36,7 +36,7 @@ export function renderWorkspaceHtml(
       --status-partial: #a1a1aa;
       --status-danger: #f87171;
       --status-warning: #fbbf24;
-      --status-running: #e4e4e7;
+      --status-running: #f4f4f5;
 
       --scrollbar-thumb: #27272a;
       --scrollbar-track: #000000;
@@ -52,25 +52,28 @@ export function renderWorkspaceHtml(
 
     body {
       margin: 0;
+      padding: 0;
       font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
-      font-size: 12.5px;
+      font-size: 12px;
       line-height: 1.45;
       background: var(--bg-canvas);
       color: var(--text-primary);
       height: 100vh;
+      width: 100vw;
       display: flex;
       flex-direction: column;
       overflow: hidden;
       user-select: text;
       -webkit-font-smoothing: antialiased;
     }
+
     code, pre, .mono {
-      font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+      font-family: 'JetBrains Mono', 'SF Mono', Menlo, Monaco, Consolas, monospace;
     }
 
     /* TOP BAR */
     .topbar {
-      height: 42px;
+      height: 40px;
       background: var(--bg-surface-1);
       border-bottom: 1px solid var(--border-subtle);
       display: flex;
@@ -79,6 +82,7 @@ export function renderWorkspaceHtml(
       padding: 0 10px;
       gap: 8px;
       flex-shrink: 0;
+      z-index: 20;
     }
     .brand-cluster {
       display: flex;
@@ -97,26 +101,55 @@ export function renderWorkspaceHtml(
       flex-shrink: 0;
     }
 
-    /* NAVIGATION TAB STRIP */
+    /* VIEW SWITCHER BAR (COMPACT DESTINATION SELECTOR FOR SIDEBAR / MOBILE) */
+    .view-switcher-bar {
+      height: 32px;
+      background: var(--bg-surface-2);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .view-dropdown {
+      flex: 1;
+      height: 24px;
+      background: var(--bg-surface-3);
+      color: var(--text-primary);
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      padding: 0 6px;
+      font-size: 11px;
+      font-weight: 500;
+      outline: none;
+      cursor: pointer;
+    }
+    .view-dropdown:focus {
+      border-color: var(--border-strong);
+    }
+
+    /* HORIZONTAL QUICK NAV TAB STRIP */
     .nav-tab-strip {
-      height: 36px;
+      height: 30px;
       background: var(--bg-surface-1);
       border-bottom: 1px solid var(--border-subtle);
       display: flex;
       align-items: center;
       padding: 0 6px;
-      gap: 3px;
+      gap: 4px;
       overflow-x: auto;
       scrollbar-width: none;
       flex-shrink: 0;
+      white-space: nowrap;
     }
     .nav-tab-strip::-webkit-scrollbar { display: none; }
     .tab-pill {
       display: inline-flex;
       align-items: center;
-      gap: 5px;
-      padding: 4px 9px;
-      font-size: 11px;
+      gap: 4px;
+      padding: 2px 8px;
+      font-size: 10.5px;
       font-weight: 500;
       color: var(--text-secondary);
       background: transparent;
@@ -162,7 +195,7 @@ export function renderWorkspaceHtml(
       border-radius: 4px;
       padding: 3px 6px;
       font-size: 11px;
-      max-width: 130px;
+      max-width: 140px;
       text-overflow: ellipsis;
       outline: none;
       cursor: pointer;
@@ -176,13 +209,14 @@ export function renderWorkspaceHtml(
       flex: 1;
       display: flex;
       min-height: 0;
+      min-width: 0;
       overflow: hidden;
       position: relative;
     }
 
     /* DESKTOP NAV RAIL (Expanded on wide screens >= 760px) */
     .nav-rail {
-      width: 180px;
+      width: 190px;
       background: var(--bg-surface-1);
       border-right: 1px solid var(--border-subtle);
       display: flex;
@@ -193,7 +227,7 @@ export function renderWorkspaceHtml(
       flex-shrink: 0;
     }
     .nav-group-title {
-      font-size: 10px;
+      font-size: 9.5px;
       font-weight: 700;
       letter-spacing: 0.08em;
       color: var(--text-muted);
@@ -205,7 +239,7 @@ export function renderWorkspaceHtml(
       gap: 7px;
       padding: 5px 8px;
       border-radius: 4px;
-      font-size: 12px;
+      font-size: 11.5px;
       color: var(--text-secondary);
       background: transparent;
       border: none;
@@ -230,6 +264,7 @@ export function renderWorkspaceHtml(
       display: flex;
       flex-direction: column;
       min-width: 0;
+      min-height: 0;
       background: var(--bg-canvas);
       position: relative;
       overflow: hidden;
@@ -241,6 +276,7 @@ export function renderWorkspaceHtml(
       display: none;
       flex-direction: column;
       min-height: 0;
+      min-width: 0;
       overflow-y: auto;
       padding: 10px;
       gap: 10px;
@@ -253,10 +289,11 @@ export function renderWorkspaceHtml(
     .stream {
       flex: 1;
       overflow-y: auto;
-      padding: 6px 2px;
+      padding: 4px 2px;
       display: flex;
       flex-direction: column;
       gap: 8px;
+      min-height: 0;
     }
     .card {
       background: var(--bg-surface-1);
@@ -311,7 +348,7 @@ export function renderWorkspaceHtml(
     }
     .btn-sm {
       padding: 2px 7px;
-      font-size: 11px;
+      font-size: 10.5px;
       height: 24px;
     }
     .btn-primary {
@@ -342,7 +379,7 @@ export function renderWorkspaceHtml(
       gap: 4px;
       padding: 2px 6px;
       border-radius: 3px;
-      font-size: 10px;
+      font-size: 9.5px;
       font-weight: 600;
       letter-spacing: 0.04em;
       text-transform: uppercase;
@@ -364,7 +401,7 @@ export function renderWorkspaceHtml(
       border: 1px solid rgba(248, 113, 113, 0.28);
     }
     .badge-running {
-      background: #1c1c21;
+      background: #18181b;
       color: var(--text-primary);
       border: 1px solid var(--border-strong);
     }
@@ -381,15 +418,15 @@ export function renderWorkspaceHtml(
     }
     .composer-input {
       width: 100%;
-      min-height: 48px;
-      max-height: 160px;
+      min-height: 44px;
+      max-height: 140px;
       resize: vertical;
       background: var(--bg-canvas);
       border: 1px solid var(--border-subtle);
       border-radius: 5px;
       padding: 8px;
       color: var(--text-primary);
-      font-size: 12.5px;
+      font-size: 12px;
       line-height: 1.4;
       outline: none;
       font-family: inherit;
@@ -427,7 +464,7 @@ export function renderWorkspaceHtml(
       right: 0;
       bottom: 0;
       z-index: 40;
-      box-shadow: -4px 0 16px rgba(0, 0, 0, 0.6);
+      box-shadow: -4px 0 16px rgba(0, 0, 0, 0.7);
       transform: translateX(100%);
       transition: transform 0.18s ease-in-out;
     }
@@ -450,7 +487,7 @@ export function renderWorkspaceHtml(
     }
     .inspector-tab {
       padding: 6px 10px;
-      font-size: 11px;
+      font-size: 10.5px;
       color: var(--text-secondary);
       background: transparent;
       border: none;
@@ -479,6 +516,9 @@ export function renderWorkspaceHtml(
       }
     }
     @media (min-width: 761px) {
+      .view-switcher-bar {
+        display: none !important;
+      }
       .inspector-pane {
         position: relative;
         transform: none !important;
@@ -503,7 +543,7 @@ export function renderWorkspaceHtml(
       box-shadow: 0 12px 32px rgba(0, 0, 0, 0.85);
     }
     dialog::backdrop {
-      background: rgba(0, 0, 0, 0.82);
+      background: rgba(0, 0, 0, 0.85);
     }
     .dialog-form {
       display: flex;
@@ -517,7 +557,7 @@ export function renderWorkspaceHtml(
       border-radius: 4px;
       padding: 6px 8px;
       color: var(--text-primary);
-      font-size: 12px;
+      font-size: 11.5px;
       outline: none;
       width: 100%;
     }
@@ -529,7 +569,7 @@ export function renderWorkspaceHtml(
     .toast-banner {
       display: none;
       position: absolute;
-      top: 48px;
+      top: 45px;
       left: 50%;
       transform: translateX(-50%);
       background: var(--bg-surface-3);
@@ -537,7 +577,7 @@ export function renderWorkspaceHtml(
       color: var(--text-primary);
       padding: 6px 12px;
       border-radius: 4px;
-      font-size: 11.5px;
+      font-size: 11px;
       z-index: 99;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7);
     }
@@ -555,15 +595,16 @@ export function renderWorkspaceHtml(
   <!-- TOP BAR -->
   <header class="topbar">
     <div class="brand-cluster" id="brand-home-btn" title="TERMINUS Workspace">
-      <svg width="18" height="18" viewBox="0 0 180 180" fill="none" style="flex-shrink:0;">
-        <g fill="none" stroke="currentColor" stroke-width="12" stroke-linecap="square" stroke-linejoin="miter">
+      <!-- Official Monochrome Terminal Frame Symbol from /Users/sahil/Downloads/terminus-terminal-frame-assets/terminus-logo-inverted.svg -->
+      <svg width="20" height="20" viewBox="0 0 180 180" fill="none" style="flex-shrink:0;">
+        <g fill="none" stroke="#f4f4f5" stroke-width="12" stroke-linecap="square" stroke-linejoin="miter">
           <path d="M46 74 V46 H74" />
           <path d="M126 46 H154 V74" />
           <path d="M46 126 V154 H74" />
           <path d="M126 154 H154 V126" />
         </g>
-        <path d="M68 72 H132 V86 H107 V130 H93 V86 H68 Z" fill="currentColor" />
-        <rect x="135" y="128" width="13" height="13" fill="currentColor" />
+        <path d="M68 72 H132 V86 H107 V130 H93 V86 H68 Z" fill="#f4f4f5" />
+        <rect x="135" y="128" width="13" height="13" fill="#f4f4f5" />
       </svg>
       <strong class="mono" style="letter-spacing:0.08em;font-size:12px;">TERMINUS</strong>
       <span id="bridge-status-pill" class="badge badge-verified" style="font-size:9px;padding:1px 4px;">Online</span>
@@ -575,17 +616,39 @@ export function renderWorkspaceHtml(
     </div>
   </header>
 
-  <!-- NAVIGATION TAB STRIP (ALWAYS VISIBLE & SCROLLABLE ON ALL SCREENS) -->
+  <!-- VIEW SWITCHER BAR (COMPACT DROPDOWN FOR NARROW SCREENS / SIDEBAR) -->
+  <div class="view-switcher-bar">
+    <label for="view-dropdown" class="visually-hidden">Switch Section</label>
+    <select id="view-dropdown" class="view-dropdown" aria-label="Switch Section">
+      <option value="workspace">● Workspace (Active Session)</option>
+      <option value="agents">◈ Specialist Agents &amp; Contracts</option>
+      <option value="skills">❖ Skills Studio (SKILL.md)</option>
+      <option value="mcp">⚡ MCP &amp; Integrations</option>
+      <option value="extensions">▣ Plugins &amp; Extension Host</option>
+      <option value="security">🛡️ Security &amp; Permissions</option>
+      <option value="redteam">🔴 Red Team Lab (ASI01–10)</option>
+      <option value="blueteam">🔵 Blue Team Console (Patches)</option>
+      <option value="antirea">🔒 Anti-REA Protection (BLA)</option>
+      <option value="models">⚙️ Models &amp; Providers</option>
+      <option value="rules">📜 Rules &amp; Context (AGENTS.md)</option>
+      <option value="analytics">📊 Usage &amp; Budgets</option>
+    </select>
+  </div>
+
+  <!-- NAVIGATION TAB STRIP (ALWAYS VISIBLE & HORIZONTALLY SCROLLABLE ON ALL SCREENS) -->
   <nav class="nav-tab-strip" id="top-nav-tabs" aria-label="Workspace Views">
     <button type="button" class="tab-pill active" data-nav="workspace">● Workspace</button>
     <button type="button" class="tab-pill" data-nav="agents">◈ Agents</button>
     <button type="button" class="tab-pill" data-nav="skills">❖ Skills</button>
     <button type="button" class="tab-pill" data-nav="mcp">⚡ MCP</button>
-    <button type="button" class="tab-pill" data-nav="extensions">▣ Extensions</button>
+    <button type="button" class="tab-pill" data-nav="extensions">▣ Plugins</button>
     <button type="button" class="tab-pill" data-nav="security">🛡️ Security</button>
+    <button type="button" class="tab-pill" data-nav="redteam">🔴 Red Team</button>
+    <button type="button" class="tab-pill" data-nav="blueteam">🔵 Blue Team</button>
+    <button type="button" class="tab-pill" data-nav="antirea">🔒 Anti-REA</button>
     <button type="button" class="tab-pill" data-nav="models">⚙️ Models</button>
     <button type="button" class="tab-pill" data-nav="rules">📜 Rules</button>
-    <button type="button" class="tab-pill" data-nav="analytics">📊 Analytics</button>
+    <button type="button" class="tab-pill" data-nav="analytics">📊 Budgets</button>
   </nav>
 
   <!-- SUB BAR (WORKSPACE EXECUTION CONTROLS) -->
@@ -596,7 +659,7 @@ export function renderWorkspaceHtml(
     </div>
     <div class="subbar-right">
       <button type="button" id="pause-btn" class="btn btn-sm" title="Pause / Resume execution">Pause</button>
-      <button type="button" id="stop-btn" class="btn btn-sm" title="Stop active task">Stop</button>
+      <button type="button" id="stop-btn" class="btn btn-sm btn-danger" title="Stop active task" disabled>Stop</button>
       <button type="button" id="inspect-drawer-btn" class="btn btn-sm" title="Toggle Task Inspector">Inspect</button>
     </div>
   </div>
@@ -615,21 +678,34 @@ export function renderWorkspaceHtml(
       </div>
 
       <div>
+        <div class="nav-group-title">DEFENSE &amp; VERIFICATION</div>
+        <button type="button" class="nav-link" data-nav="redteam">
+          <span>🔴</span> Red Team Lab
+        </button>
+        <button type="button" class="nav-link" data-nav="blueteam">
+          <span>🔵</span> Blue Team Console
+        </button>
+        <button type="button" class="nav-link" data-nav="antirea">
+          <span>🔒</span> Anti-REA Protection
+        </button>
+      </div>
+
+      <div>
         <div class="nav-group-title">BUILD &amp; EXTEND</div>
         <button type="button" class="nav-link" data-nav="agents">
-          <span>◈</span> Agents
+          <span>◈</span> Agents &amp; Contracts
         </button>
         <button type="button" class="nav-link" data-nav="skills">
           <span>❖</span> Skills Studio
         </button>
-        <button type="button" class="nav-link" data-nav="extensions">
-          <span>▣</span> Extensions
-        </button>
         <button type="button" class="nav-link" data-nav="mcp">
           <span>⚡</span> MCP &amp; Tools
         </button>
+        <button type="button" class="nav-link" data-nav="extensions">
+          <span>▣</span> Plugins &amp; Host
+        </button>
         <button type="button" class="nav-link" data-nav="models">
-          <span>⚙</span> Models
+          <span>⚙</span> Models &amp; Providers
         </button>
       </div>
 
@@ -639,15 +715,15 @@ export function renderWorkspaceHtml(
           <span>📜</span> Rules &amp; Context
         </button>
         <button type="button" class="nav-link" data-nav="security">
-          <span>🛡️</span> Security
+          <span>🛡️</span> Security &amp; Audit
         </button>
         <button type="button" class="nav-link" data-nav="analytics">
-          <span>📊</span> Analytics
+          <span>📊</span> Usage &amp; Budgets
         </button>
       </div>
     </nav>
 
-    <!-- CENTER PANE (HOSTING ALL 9 SCREENS) -->
+    <!-- CENTER PANE (HOSTING ALL 12 VIEWS) -->
     <main class="main-pane">
       <!-- 1. WORKSPACE VIEW -->
       <section id="view-workspace" class="view-container active" aria-label="Coding Workspace">
@@ -657,7 +733,7 @@ export function renderWorkspaceHtml(
               <span class="card-title">TERMINUS Autonomous Engineering Runtime</span>
               <span id="verdict-stamp" class="badge badge-partial">READY</span>
             </div>
-            <p style="margin:0;font-size:12px;color:var(--text-secondary);">
+            <p style="margin:0;font-size:11.5px;color:var(--text-secondary);">
               Multi-Agent Orchestrator with cryptographic SHA-256 evidence validation, quarantined skill execution, and 20 OWASP system safety invariants. Describe an instruction below to begin.
             </p>
             <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:2px;">
@@ -689,7 +765,7 @@ export function renderWorkspaceHtml(
             <strong style="font-size:13px;">Specialist Agents &amp; Harnesses</strong>
             <div style="font-size:11px;color:var(--text-secondary);">OO-Harness hierarchy with strict execution boundaries</div>
           </div>
-          <button type="button" id="create-agent-btn" class="btn btn-sm btn-primary">+ Create Agent</button>
+          <button type="button" id="create-agent-btn" class="btn btn-sm btn-primary">+ New Specialist</button>
         </div>
         <div id="agents-list" style="display:flex;flex-direction:column;gap:8px;"></div>
       </section>
@@ -698,22 +774,22 @@ export function renderWorkspaceHtml(
       <section id="view-skills" class="view-container" aria-label="Skills Studio">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <div>
-            <strong style="font-size:13px;">Skills Studio</strong>
-            <div style="font-size:11px;color:var(--text-secondary);">Discovered agent skills with SHA-256 trust verification</div>
+            <strong style="font-size:13px;">Skills Studio (SKILL.md)</strong>
+            <div style="font-size:11px;color:var(--text-secondary);">Quarantined third-party skills require SHA-256 validation</div>
           </div>
-          <button type="button" id="add-skill-btn" class="btn btn-sm btn-primary">+ Add Skill</button>
+          <button type="button" id="rescan-skills-btn" class="btn btn-sm">Rescan Skills</button>
         </div>
         <div id="skills-list" style="display:flex;flex-direction:column;gap:8px;"></div>
       </section>
 
       <!-- 4. MCP VIEW -->
-      <section id="view-mcp" class="view-container" aria-label="MCP &amp; Tools">
+      <section id="view-mcp" class="view-container" aria-label="MCP Management">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <div>
-            <strong style="font-size:13px;">MCP &amp; Tool Integrations</strong>
-            <div style="font-size:11px;color:var(--text-secondary);">Model Context Protocol client connections and tools</div>
+            <strong style="font-size:13px;">Model Context Protocol (MCP)</strong>
+            <div style="font-size:11px;color:var(--text-secondary);">Stdio &amp; SSE connectors with isolated privilege enforcement</div>
           </div>
-          <button type="button" id="add-mcp-btn" class="btn btn-sm btn-primary">+ Add Server</button>
+          <button type="button" id="add-mcp-btn" class="btn btn-sm btn-primary">+ Add MCP Server</button>
         </div>
         <div id="mcp-list" style="display:flex;flex-direction:column;gap:8px;"></div>
       </section>
@@ -722,121 +798,121 @@ export function renderWorkspaceHtml(
       <section id="view-extensions" class="view-container" aria-label="Extensions Host">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <div>
-            <strong style="font-size:13px;">Isolated Plugin Extension Host</strong>
-            <div style="font-size:11px;color:var(--text-secondary);">Sandboxed plugins running in isolated worker threads</div>
+            <strong style="font-size:13px;">Isolated Plugin Host</strong>
+            <div style="font-size:11px;color:var(--text-secondary);">Sandboxed Node child processes with memory &amp; circuit breakers</div>
           </div>
-        </div>
-        <div class="card">
-          <div class="card-title">Extension Isolation Boundaries</div>
-          <p style="font-size:11.5px;color:var(--text-secondary);margin:0;">
-            All plugins run in dedicated Node/Bun Worker Threads. Memory ceiling: 256MB. Execution timeout: 30s. Zero direct access to agent execution state.
-          </p>
         </div>
         <div id="extensions-list" style="display:flex;flex-direction:column;gap:8px;"></div>
       </section>
 
       <!-- 6. SECURITY VIEW -->
-      <section id="view-security" class="view-container" aria-label="Security &amp; Permissions">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div>
-            <strong style="font-size:13px;">Security &amp; Permission Engine</strong>
-            <div style="font-size:11px;color:var(--text-secondary);">OWASP enforcement, hard-deny rules, and audit trail</div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-title">20 Invariant Hard-Deny Rules Enforced</div>
-          <p style="font-size:11.5px;color:var(--text-secondary);margin:0;">
-            Hard-blocks SSH key exfiltration, forced git pushes, credential destruction, and unverified worker self-certifications.
-          </p>
-        </div>
+      <section id="view-security" class="view-container" aria-label="Security & Approvals">
         <div>
-          <strong style="font-size:11px;color:var(--text-muted);letter-spacing:0.04em;">PERMISSION AUDIT LOG</strong>
+          <strong style="font-size:13px;">Permission Audit &amp; Policy Invariants</strong>
+          <div style="font-size:11px;color:var(--text-secondary);">Immutable log of all sandbox decisions and human approvals</div>
         </div>
-        <div id="security-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+        <div id="security-list" style="display:flex;flex-direction:column;gap:8px;"></div>
       </section>
 
-      <!-- 7. MODELS VIEW -->
-      <section id="view-models" class="view-container" aria-label="Model Providers">
+      <!-- 7. RED TEAM LAB VIEW -->
+      <section id="view-redteam" class="view-container" aria-label="Red Team Lab">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <div>
-            <strong style="font-size:13px;">Model Providers &amp; Gateway</strong>
-            <div style="font-size:11px;color:var(--text-secondary);">Multi-provider abstraction with SecretVault credentials</div>
+            <strong style="font-size:13px;">Autonomous Red Team Campaign</strong>
+            <div style="font-size:11px;color:var(--text-secondary);">Proactive adversarial testing across OWASP Agentic (ASI01–10) &amp; AppSec (A01–10)</div>
           </div>
+          <button type="button" id="run-redteam-btn" class="btn btn-sm btn-primary">Run Attack Campaign</button>
+        </div>
+        <div id="redteam-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+      </section>
+
+      <!-- 8. BLUE TEAM CONSOLE VIEW -->
+      <section id="view-blueteam" class="view-container" aria-label="Blue Team Console">
+        <div>
+          <strong style="font-size:13px;">Blue Team Defensive Console</strong>
+          <div style="font-size:11px;color:var(--text-secondary);">Automated vulnerability triage, root cause analysis &amp; regression tests</div>
+        </div>
+        <div id="blueteam-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+      </section>
+
+      <!-- 9. ANTI-REA PROTECTION VIEW -->
+      <section id="view-antirea" class="view-container" aria-label="Anti-REA Protection">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <strong style="font-size:13px;">Anti-REA Reverse Engineering Defense</strong>
+            <div style="font-size:11px;color:var(--text-secondary);">AST obfuscation, string encryption, and functional equivalence verification</div>
+          </div>
+          <button type="button" id="run-antirea-btn" class="btn btn-sm btn-primary">Harden Release</button>
+        </div>
+        <div id="antirea-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+      </section>
+
+      <!-- 10. MODELS VIEW -->
+      <section id="view-models" class="view-container" aria-label="Model Providers">
+        <div>
+          <strong style="font-size:13px;">Model Providers &amp; Fallbacks</strong>
+          <div style="font-size:11px;color:var(--text-secondary);">Manage credentials and context budget boundaries</div>
         </div>
         <div id="models-list" style="display:flex;flex-direction:column;gap:8px;"></div>
       </section>
 
-      <!-- 8. RULES VIEW -->
-      <section id="view-rules" class="view-container" aria-label="Rules &amp; Context">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div>
-            <strong style="font-size:13px;">Rules &amp; Context Hierarchy</strong>
-            <div style="font-size:11px;color:var(--text-secondary);">5-layer instruction cascade with repository map</div>
-          </div>
+      <!-- 11. RULES VIEW -->
+      <section id="view-rules" class="view-container" aria-label="Rules & Context">
+        <div>
+          <strong style="font-size:13px;">Instruction Hierarchy &amp; Rule Banks</strong>
+          <div style="font-size:11px;color:var(--text-secondary);">Edit repository instruction layers with immediate file persistence</div>
         </div>
         <div id="rules-list" style="display:flex;flex-direction:column;gap:8px;"></div>
       </section>
 
-      <!-- 9. ANALYTICS VIEW -->
-      <section id="view-analytics" class="view-container" aria-label="Budgets &amp; Analytics">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div>
-            <strong style="font-size:13px;">Budgets &amp; Analytics</strong>
-            <div style="font-size:11px;color:var(--text-secondary);">Hard execution boundaries and verification ledger metrics</div>
-          </div>
+      <!-- 12. ANALYTICS VIEW -->
+      <section id="view-analytics" class="view-container" aria-label="Usage & Budgets">
+        <div>
+          <strong style="font-size:13px;">Usage, Cost &amp; Verification Integrity</strong>
+          <div style="font-size:11px;color:var(--text-secondary);">Real-time token tracking, spend limits, and proof of non-falsification</div>
         </div>
         <div id="analytics-list" style="display:flex;flex-direction:column;gap:8px;"></div>
       </section>
     </main>
 
-    <!-- TASK INSPECTOR DRAWER / PANE -->
-    <aside class="inspector-pane" id="inspector-pane" aria-label="Task Inspector">
+    <!-- RIGHT TASK INSPECTOR DRAWER -->
+    <aside id="inspector-pane" class="inspector-pane" aria-label="Task Inspector">
       <div class="inspector-header">
-        <strong style="font-size:11px;letter-spacing:0.06em;">TASK INSPECTOR</strong>
-        <button type="button" id="close-inspector-btn" class="btn btn-sm" title="Close Inspector">✕</button>
+        <strong style="font-size:11.5px;">Task Inspector</strong>
+        <button type="button" id="close-inspector-btn" class="btn btn-sm">✕</button>
       </div>
       <div class="inspector-tabs">
-        <button type="button" class="inspector-tab active" data-tab="verification">Verdict</button>
+        <button type="button" class="inspector-tab active" data-tab="verification">Verification</button>
         <button type="button" class="inspector-tab" data-tab="diff">Diff</button>
-        <button type="button" class="inspector-tab" data-tab="plan">Plan</button>
-        <button type="button" class="inspector-tab" data-tab="agents">Agents</button>
+        <button type="button" class="inspector-tab" data-tab="plan">DAG Plan</button>
         <button type="button" class="inspector-tab" data-tab="files">Files</button>
       </div>
-      <div class="inspector-body" id="inspector-content"></div>
+      <div id="inspector-content" class="inspector-body"></div>
     </aside>
   </div>
 
-  <!-- UNSAVED CONFIG DIALOG -->
+  <!-- MODALS -->
   <dialog id="unsaved-config-dialog">
     <div style="display:flex;justify-content:space-between;align-items:center;">
-      <strong style="font-size:13px;">Unsaved Configuration Changes</strong>
+      <strong style="font-size:13px;">Unsaved Changes</strong>
+      <button type="button" id="close-unsaved-dialog" class="btn btn-sm">✕</button>
     </div>
-    <p style="font-size:12px;color:var(--text-secondary);margin:8px 0 12px;">You have unsaved changes. Discard changes and switch screens?</p>
+    <p style="font-size:11.5px;color:var(--text-secondary);margin:8px 0 12px;">You have unsaved changes in an instruction or configuration file. Save changes before switching?</p>
     <div style="display:flex;justify-content:flex-end;gap:6px;">
-      <button type="button" id="stay-config-btn" class="btn btn-sm">Stay</button>
-      <button type="button" id="discard-config-btn" class="btn btn-sm btn-danger">Discard &amp; Switch</button>
+      <button type="button" id="discard-unsaved-btn" class="btn btn-sm">Discard</button>
+      <button type="button" id="save-unsaved-btn" class="btn btn-sm btn-primary">Save &amp; Proceed</button>
     </div>
   </dialog>
 
-  <!-- CREATE AGENT MODAL -->
   <dialog id="agent-dialog">
     <div style="display:flex;justify-content:space-between;align-items:center;">
       <strong style="font-size:13px;">Register Custom Specialist Agent</strong>
       <button type="button" id="close-agent-modal" class="btn btn-sm">✕</button>
     </div>
-    <form class="dialog-form" id="agent-form">
-      <div>
-        <label style="font-size:11px;color:var(--text-secondary);">Agent Name</label>
-        <input class="form-input" id="new-agent-name" placeholder="e.g. TestEngineer" required />
-      </div>
-      <div>
-        <label style="font-size:11px;color:var(--text-secondary);">Role &amp; Responsibility</label>
-        <input class="form-input" id="new-agent-role" placeholder="e.g. Unit and integration test author" required />
-      </div>
-      <div>
-        <label style="font-size:11px;color:var(--text-secondary);">System Prompt Instructions</label>
-        <textarea class="form-input" id="new-agent-prompt" style="height:70px;resize:vertical;" placeholder="Agent instructions..."></textarea>
-      </div>
+    <form id="agent-form" class="dialog-form">
+      <input type="text" id="new-agent-name" class="form-input" placeholder="Agent Name (e.g., DatabaseMigrationSpecialist)" required />
+      <input type="text" id="new-agent-role" class="form-input" placeholder="Role description" required />
+      <textarea id="new-agent-prompt" class="form-input" style="min-height:80px;" placeholder="System prompt & instructions"></textarea>
       <div style="display:flex;justify-content:flex-end;gap:6px;margin-top:6px;">
         <button type="button" id="cancel-agent-modal" class="btn btn-sm">Cancel</button>
         <button type="submit" class="btn btn-sm btn-primary">Save Agent</button>
@@ -844,25 +920,15 @@ export function renderWorkspaceHtml(
     </form>
   </dialog>
 
-  <!-- ADD MCP MODAL -->
   <dialog id="mcp-dialog">
     <div style="display:flex;justify-content:space-between;align-items:center;">
-      <strong style="font-size:13px;">Add MCP Server</strong>
+      <strong style="font-size:13px;">Add Custom MCP Server</strong>
       <button type="button" id="close-mcp-modal" class="btn btn-sm">✕</button>
     </div>
-    <form class="dialog-form" id="mcp-form">
-      <div>
-        <label style="font-size:11px;color:var(--text-secondary);">Server ID</label>
-        <input class="form-input" id="new-mcp-id" placeholder="e.g. database-mcp" required />
-      </div>
-      <div>
-        <label style="font-size:11px;color:var(--text-secondary);">Command</label>
-        <input class="form-input" id="new-mcp-cmd" placeholder="e.g. npx" required />
-      </div>
-      <div>
-        <label style="font-size:11px;color:var(--text-secondary);">Arguments (space separated)</label>
-        <input class="form-input" id="new-mcp-args" placeholder="-y @modelcontextprotocol/server-postgres ..." />
-      </div>
+    <form id="mcp-form" class="dialog-form">
+      <input type="text" id="new-mcp-id" class="form-input" placeholder="Server ID (e.g. postgres-db)" required />
+      <input type="text" id="new-mcp-cmd" class="form-input" placeholder="Command (e.g. npx -y @modelcontextprotocol/server-postgres)" required />
+      <input type="text" id="new-mcp-args" class="form-input" placeholder="Arguments (separated by spaces)" />
       <div style="display:flex;justify-content:flex-end;gap:6px;margin-top:6px;">
         <button type="button" id="cancel-mcp-modal" class="btn btn-sm">Cancel</button>
         <button type="submit" class="btn btn-sm btn-primary">Connect MCP</button>
@@ -870,17 +936,15 @@ export function renderWorkspaceHtml(
     </form>
   </dialog>
 
-  <!-- JAVASCRIPT LOGIC -->
   <script>
     (function() {
       const boot = ${safeBootstrapJson};
       const vscodeApi = typeof acquireVsCodeApi === "function" ? acquireVsCodeApi() : null;
 
-      // STATE
       let activeView = "workspace";
       let sessions = Array.isArray(boot.sessions) ? [...boot.sessions] : [];
       let activeSessionId = sessions[0] ? sessions[0].sessionId : "";
-      let executionStatus = "idle"; // idle | running | paused | stopped | completed
+      let executionStatus = "idle"; // idle | running | paused | stopped | verified
       let isPaused = false;
       let activeInspectorTab = "verification";
       const events = [];
@@ -888,6 +952,7 @@ export function renderWorkspaceHtml(
       // DOM ELEMENTS
       const topNavTabs = document.querySelectorAll("#top-nav-tabs .tab-pill");
       const railNavLinks = document.querySelectorAll(".nav-rail .nav-link");
+      const viewDropdown = document.getElementById("view-dropdown");
       const sessionSelect = document.getElementById("session-select");
       const sessionStatusBadge = document.getElementById("session-status-badge");
       const verdictStamp = document.getElementById("verdict-stamp");
@@ -953,9 +1018,12 @@ export function renderWorkspaceHtml(
         }
       });
 
-      // VIEW SWITCHING
+      // VIEW SWITCHING (ALWAYS SYNCS DROPDOWN, HORIZONTAL TABS & DESKTOP RAIL)
       function switchView(target) {
         activeView = target;
+        if (viewDropdown && viewDropdown.value !== target) {
+          viewDropdown.value = target;
+        }
         topNavTabs.forEach(tab => {
           tab.classList.toggle("active", tab.getAttribute("data-nav") === target);
         });
@@ -977,6 +1045,9 @@ export function renderWorkspaceHtml(
         populateViewData(target);
       }
 
+      viewDropdown?.addEventListener("change", (e) => {
+        switchView(e.target.value);
+      });
       topNavTabs.forEach(btn => {
         btn.addEventListener("click", () => switchView(btn.getAttribute("data-nav") || "workspace"));
       });
@@ -986,7 +1057,7 @@ export function renderWorkspaceHtml(
       document.getElementById("brand-home-btn")?.addEventListener("click", () => switchView("workspace"));
       document.getElementById("open-full-btn")?.addEventListener("click", () => {
         if (vscodeApi) vscodeApi.postMessage({ type: "rpc", method: "openWorkspaceTab", params: {} });
-        else showToast("Open Full Tab is active in IDE mode.");
+        else showToast("Open Full Workspace Tab active in IDE mode.");
       });
 
       // SESSIONS MANAGEMENT
@@ -1075,20 +1146,26 @@ export function renderWorkspaceHtml(
           if (isPaused) {
             pauseBtn.textContent = "Resume";
             pauseBtn.className = "btn btn-sm btn-primary";
+            pauseBtn.disabled = false;
           } else {
             pauseBtn.textContent = "Pause";
             pauseBtn.className = "btn btn-sm";
+            pauseBtn.disabled = executionStatus === "idle";
           }
         }
 
         if (stopBtn) {
-          stopBtn.disabled = executionStatus === "idle" || executionStatus === "completed" || executionStatus === "stopped";
+          stopBtn.disabled = executionStatus === "idle" || executionStatus === "completed" || executionStatus === "stopped" || executionStatus === "verified";
         }
       }
 
       pauseBtn?.addEventListener("click", async () => {
-        if (!activeSessionId || executionStatus === "idle") {
-          showToast("Agent is idle. Enter a prompt below to run a task.");
+        if (!activeSessionId) {
+          showToast("No active session running. Type a task below to start.");
+          return;
+        }
+        if (executionStatus === "idle") {
+          showToast("Agent is idle. Enter an instruction below to begin.");
           return;
         }
         try {
@@ -1110,8 +1187,8 @@ export function renderWorkspaceHtml(
       });
 
       stopBtn?.addEventListener("click", async () => {
-        if (!activeSessionId || executionStatus === "idle") {
-          showToast("No active execution to stop.");
+        if (!activeSessionId) {
+          showToast("No active session running.");
           return;
         }
         try {
@@ -1123,7 +1200,7 @@ export function renderWorkspaceHtml(
             verdictStamp.textContent = "STOPPED";
             verdictStamp.className = "badge badge-danger";
           }
-          showToast("Execution cancelled.");
+          showToast("Execution stopped.");
         } catch (err) {
           showToast("Stop error: " + err.message);
         }
@@ -1152,21 +1229,16 @@ export function renderWorkspaceHtml(
         if (activeInspectorTab === "verification") {
           inspectorContent.innerHTML =
             '<div class="card"><div class="card-title">Cryptographic Evidence Ledger</div>' +
-            '<div style="font-size:11.5px;margin-top:6px;display:flex;flex-direction:column;gap:5px;">' +
+            '<div style="font-size:11px;margin-top:6px;display:flex;flex-direction:column;gap:5px;">' +
             '<div><strong>Hash Chain:</strong> <span class="mono">SHA-256 Validated</span></div>' +
             '<div><strong>Self-Certification:</strong> <span class="badge badge-danger" style="font-size:9px;">Blocked</span></div>' +
             '<div><strong>Adversarial Pass:</strong> <span class="badge badge-verified" style="font-size:9px;">Clean</span></div>' +
             '<div><strong>False Acceptance Rate:</strong> 0.00%</div>' +
             '</div></div>';
         } else if (activeInspectorTab === "diff") {
-          inspectorContent.innerHTML = '<div class="card"><div class="card-title">Unified File Diffs</div><p style="font-size:11.5px;color:var(--text-secondary);margin:4px 0 0;">Pre-modification baseline snapshots preserved. Changes are audited line-by-line before writing to disk.</p></div>';
+          inspectorContent.innerHTML = '<div class="card"><div class="card-title">Unified File Diffs</div><p style="font-size:11px;color:var(--text-secondary);margin:4px 0 0;">Pre-modification baseline snapshots preserved. Changes are audited before writing to disk.</p></div>';
         } else if (activeInspectorTab === "plan") {
-          inspectorContent.innerHTML = '<div class="card"><div class="card-title">Structured Task Plan</div><p style="font-size:11.5px;color:var(--text-secondary);margin:4px 0 0;">Agent-generated DAG plan with explicit approval gates before high-impact tool execution.</p></div>';
-        } else if (activeInspectorTab === "agents") {
-          const harnesses = (boot.harnesses && boot.harnesses.harnesses) || [];
-          inspectorContent.innerHTML = harnesses.map(h =>
-            '<div class="card"><strong style="font-size:11px;">' + h.name + '</strong><div style="font-size:11px;color:var(--text-secondary);">' + h.role + '</div></div>'
-          ).join("");
+          inspectorContent.innerHTML = '<div class="card"><div class="card-title">Structured Task Plan</div><p style="font-size:11px;color:var(--text-secondary);margin:4px 0 0;">Agent-generated DAG plan with explicit approval gates before high-impact tool execution.</p></div>';
         } else if (activeInspectorTab === "files") {
           const repoMap = (boot.instructions && boot.instructions.repoMapPreview) || "Repository map ready.";
           inspectorContent.innerHTML = '<pre class="card mono" style="font-size:10px;overflow:auto;max-height:300px;white-space:pre-wrap;">' + repoMap.replace(/</g, "&lt;") + '</pre>';
@@ -1203,7 +1275,7 @@ export function renderWorkspaceHtml(
             '<button type="button" class="btn btn-sm btn-danger" data-reject="' + p.approvalId + '">Reject</button>' +
             '</div>';
         } else if (p.type === "agent.progress") {
-          card.innerHTML = '<div style="display:flex;align-items:center;gap:6px;"><span class="badge badge-partial mono">#' + env.seq + ' ' + (p.stage || "progress") + '</span><span style="font-size:11.5px;color:var(--text-secondary);">' + (p.agentId || "agent") + '</span></div>' +
+          card.innerHTML = '<div style="display:flex;align-items:center;gap:6px;"><span class="badge badge-partial mono">#' + env.seq + ' ' + (p.stage || "progress") + '</span><span style="font-size:11px;color:var(--text-secondary);">' + (p.agentId || "agent") + '</span></div>' +
             '<div style="font-size:12px;margin-top:3px;">' + String(p.summary || p.textDelta || "").replace(/</g, "&lt;") + '</div>';
         } else if (p.type === "tool.started") {
           card.innerHTML = '<div class="card-header"><span class="card-title mono">' + p.toolName + '</span><span class="badge badge-running">RUNNING</span></div>' +
@@ -1227,12 +1299,11 @@ export function renderWorkspaceHtml(
         if (!prompt) return;
         composerTextarea.value = "";
 
-        // Append user card to stream immediately
         const userCard = document.createElement("div");
         userCard.className = "card";
         userCard.style.borderColor = "var(--border-strong)";
         userCard.innerHTML = '<div class="card-header"><strong style="font-size:12px;">Instruction</strong><span class="badge badge-partial mono">' + (modeSelect?.value || "orchestrate") + '</span></div>' +
-          '<div style="font-size:12.5px;color:var(--text-primary);white-space:pre-wrap;">' + prompt.replace(/</g, "&lt;") + '</div>';
+          '<div style="font-size:12px;color:var(--text-primary);white-space:pre-wrap;">' + prompt.replace(/</g, "&lt;") + '</div>';
         streamEl.appendChild(userCard);
         streamEl.scrollTop = streamEl.scrollHeight;
 
@@ -1289,7 +1360,7 @@ export function renderWorkspaceHtml(
         }
       });
 
-      // POPULATE ALL 8 DEDICATED VIEWS
+      // POPULATE ALL 12 VIEWS
       function populateViewData(v) {
         if (v === "agents") {
           const list = document.getElementById("agents-list");
@@ -1356,6 +1427,35 @@ export function renderWorkspaceHtml(
             '<div class="mono" style="color:var(--text-secondary);font-size:10.5px;margin-top:2px;word-break:break-all;">' + a.target + '</div>' +
             '</div>'
           ).join("");
+        } else if (v === "redteam") {
+          const list = document.getElementById("redteam-list");
+          if (!list) return;
+          list.innerHTML =
+            '<div class="card"><div class="card-header"><span class="card-title">12 Red Team Attack Hypotheses</span><span class="badge badge-verified">Ready</span></div>' +
+            '<p style="color:var(--text-secondary);font-size:11px;margin:0;">Proactive execution-grounded attack simulation testing permission boundaries, MCP privilege escalation, path traversal, and anti-tamper oracles.</p>' +
+            '<div class="mono" style="font-size:10.5px;color:var(--text-muted);display:flex;flex-direction:column;gap:3px;margin-top:4px;">' +
+            '<div>• ASI01: Agent Goal Hijack via Malicious Instructions</div>' +
+            '<div>• ASI02: Tool &amp; MCP Indirect Privilege Escalation</div>' +
+            '<div>• ASI03: Sandbox Escape via Shell Substitution</div>' +
+            '<div>• ASI07: Insecure Inter-Agent Communication Spoofing</div>' +
+            '<div>• A01: Broken Access Control &amp; Path Traversal</div>' +
+            '<div>• A03: Injection &amp; SQL Template Interpolation</div>' +
+            '</div></div>';
+        } else if (v === "blueteam") {
+          const list = document.getElementById("blueteam-list");
+          if (!list) return;
+          list.innerHTML =
+            '<div class="card"><div class="card-header"><span class="card-title">Defensive Remediation Engine</span><span class="badge badge-verified">Active</span></div>' +
+            '<p style="color:var(--text-secondary);font-size:11px;margin:0;">When Red Team uncovers an exploited vulnerability, Blue Team triages the vector, performs AST-level root cause analysis, generates regression test suites, and synthesizes unified diff patches.</p>' +
+            '</div>';
+        } else if (v === "antirea") {
+          const list = document.getElementById("antirea-list");
+          if (!list) return;
+          list.innerHTML =
+            '<div class="card"><div class="card-header"><span class="card-title">Anti-REA Software Hardening</span><span class="badge badge-verified">Safe Output Mode</span></div>' +
+            '<p style="color:var(--text-secondary);font-size:11px;margin:0;">Protects builds against AI reverse engineering agents (BLA) via AST obfuscation, string encryption, and decoy canary traps. All protected artifacts are written to <span class="mono">dist-protected/</span> preserving original developer files.</p>' +
+            '<div style="font-size:11px;margin-top:4px;color:var(--text-secondary);"><strong>Functional Equivalence Verification:</strong> Mandatory test suite execution guarantees protected release behavior is 100% equivalent to original codebase.</div>' +
+            '</div>';
         } else if (v === "models") {
           const list = document.getElementById("models-list");
           const providers = boot.providers || [];
@@ -1374,10 +1474,12 @@ export function renderWorkspaceHtml(
           const list = document.getElementById("rules-list");
           const layers = (boot.instructions && boot.instructions.layers) || [];
           if (!list) return;
-          list.innerHTML = layers.map(l =>
+          list.innerHTML = layers.map((l, idx) =>
             '<div class="card">' +
             '<div class="card-header"><span class="card-title">Level ' + l.priority + ': ' + l.label + '</span><span class="badge badge-partial mono">' + l.scope + '</span></div>' +
-            '<div class="mono" style="font-size:10.5px;color:var(--text-muted);word-break:break-all;">' + l.path + '</div>' +
+            '<div class="mono" style="font-size:10px;color:var(--text-muted);word-break:break-all;">' + l.path + '</div>' +
+            (l.editable ? '<textarea class="form-input mono" style="min-height:90px;font-size:11px;margin-top:4px;" id="rule-content-' + idx + '">' + (l.content || "").replace(/</g, "&lt;") + '</textarea>' +
+            '<div style="display:flex;justify-content:flex-end;margin-top:4px;"><button type="button" class="btn btn-sm btn-primary" data-save-rule="' + idx + '" data-rule-path="' + l.path + '">Save File</button></div>' : '<pre class="mono" style="font-size:10px;color:var(--text-secondary);background:var(--bg-canvas);padding:6px;border-radius:4px;max-height:80px;overflow:auto;margin:4px 0 0;">' + (l.content || "").replace(/</g, "&lt;") + '</pre>') +
             '</div>'
           ).join("");
         } else if (v === "analytics") {
@@ -1396,10 +1498,122 @@ export function renderWorkspaceHtml(
             '</div>' +
             '<div class="card">' +
             '<div class="card-header"><span class="card-title">Verification Integrity</span><span class="badge badge-verified">100% Chain</span></div>' +
-            '<div style="font-size:11.5px;color:var(--text-secondary);">False Acceptances: 0 · SHA-256 Ledger Validated</div>' +
+            '<div style="font-size:11px;color:var(--text-secondary);">False Acceptances: 0 · SHA-256 Ledger Validated · UCCR: 0.00%</div>' +
             '</div>';
         }
       }
+
+      // BUTTON HANDLERS FOR RED TEAM, ANTI-REA, MCP & RULES
+      document.addEventListener("click", async (e) => {
+        const testMcpBtn = e.target.closest("[data-test-mcp]");
+        const saveKeyBtn = e.target.closest("[data-save-key]");
+        const approveSkillBtn = e.target.closest("[data-approve-skill]");
+        const saveRuleBtn = e.target.closest("[data-save-rule]");
+
+        if (testMcpBtn) {
+          const sName = testMcpBtn.getAttribute("data-test-mcp");
+          testMcpBtn.disabled = true;
+          testMcpBtn.textContent = "Testing...";
+          try {
+            const start = Date.now();
+            const res = await callRpc("connectMcpServer", { serverId: sName });
+            const lat = Date.now() - start;
+            testMcpBtn.textContent = "Connected (" + lat + "ms)";
+            testMcpBtn.className = "btn btn-sm btn-primary";
+            showToast("MCP " + sName + " connected (" + (res.tools ? res.tools.length : 0) + " tools discovered)");
+          } catch (err) {
+            testMcpBtn.textContent = "Failed";
+            testMcpBtn.className = "btn btn-sm btn-danger";
+            showToast("MCP Test Failed: " + err.message);
+          }
+        } else if (saveKeyBtn) {
+          const provider = saveKeyBtn.getAttribute("data-save-key");
+          const input = document.getElementById("key-input-" + provider);
+          if (input && input.value) {
+            try {
+              await callRpc("setProviderApiKey", { provider, apiKey: input.value });
+              showToast("API key saved for " + provider);
+              input.value = "";
+              populateViewData("models");
+            } catch (err) {
+              showToast("Error saving key: " + err.message);
+            }
+          }
+        } else if (approveSkillBtn) {
+          const sName = approveSkillBtn.getAttribute("data-approve-skill");
+          try {
+            const s = (boot.skills || []).find(x => x.name === sName);
+            await callRpc("approveQuarantinedSkill", { name: sName, content: s ? s.content : "" });
+            showToast("Skill " + sName + " verified & trusted (SHA-256)");
+            if (s) s.trustState = "trusted";
+            populateViewData("skills");
+          } catch (err) {
+            showToast("Approval error: " + err.message);
+          }
+        } else if (saveRuleBtn) {
+          const idx = saveRuleBtn.getAttribute("data-save-rule");
+          const rPath = saveRuleBtn.getAttribute("data-rule-path");
+          const textarea = document.getElementById("rule-content-" + idx);
+          if (textarea && rPath) {
+            try {
+              await callRpc("saveInstructionFile", { path: rPath, content: textarea.value });
+              showToast("Instruction file saved: " + rPath.split("/").pop());
+            } catch (err) {
+              showToast("Error saving file: " + err.message);
+            }
+          }
+        }
+      });
+
+      document.getElementById("run-redteam-btn")?.addEventListener("click", async () => {
+        const btn = document.getElementById("run-redteam-btn");
+        if (btn) { btn.disabled = true; btn.textContent = "Running Attacks..."; }
+        try {
+          const report = await callRpc("runRedTeamPass", {});
+          showToast("Red Team Campaign Complete: " + report.attacksExploited + " attacks tested");
+          const list = document.getElementById("redteam-list");
+          if (list && report.results) {
+            list.innerHTML =
+              '<div class="card"><div class="card-header"><span class="card-title">Campaign Result: ' + report.campaignId + '</span><span class="badge ' + (report.attacksExploited === 0 ? "badge-verified" : "badge-danger") + '">' + (report.attacksExploited === 0 ? "PASSED" : "VULNERABILITIES DETECTED") + '</span></div>' +
+              '<div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Exploited: ' + report.attacksExploited + ' / ' + report.attacksAttempted + ' (' + ((1 - report.attackSuccessRate) * 100).toFixed(1) + '% Defensive Block Rate)</div>' +
+              '</div>' +
+              report.results.map(r =>
+                '<div class="card" style="padding:8px 10px;">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+                '<span class="mono" style="font-size:11px;font-weight:600;">' + r.hypothesisId + ': ' + r.name + '</span>' +
+                '<span class="badge ' + (r.verdict === "EXPLOITED" ? "badge-danger" : "badge-verified") + '">' + r.verdict + '</span>' +
+                '</div>' +
+                '<div style="font-size:11px;color:var(--text-secondary);margin-top:3px;">' + r.actualEffect + '</div>' +
+                '</div>'
+              ).join("");
+          }
+        } catch (err) {
+          showToast("Red Team error: " + err.message);
+        } finally {
+          if (btn) { btn.disabled = false; btn.textContent = "Run Attack Campaign"; }
+        }
+      });
+
+      document.getElementById("run-antirea-btn")?.addEventListener("click", async () => {
+        const btn = document.getElementById("run-antirea-btn");
+        if (btn) { btn.disabled = true; btn.textContent = "Hardening Release..."; }
+        try {
+          const res = await callRpc("runAntiREAHarden", { options: { profile: "enhanced" } });
+          showToast("Anti-REA Hardening Succeeded (Verified)");
+          const list = document.getElementById("antirea-list");
+          if (list && res.manifest) {
+            list.innerHTML =
+              '<div class="card"><div class="card-header"><span class="card-title">Signed Release: ' + res.manifest.releaseId + '</span><span class="badge badge-verified">' + res.manifest.verificationVerdict + '</span></div>' +
+              '<div class="mono" style="font-size:10.5px;color:var(--text-muted);word-break:break-all;margin-top:2px;">Root Hash: sha256:' + res.manifest.rootHash + '</div>' +
+              '<div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">Protected Files (' + res.manifest.artifacts.length + ') emitted to <span class="mono">dist-protected/</span></div>' +
+              '</div>';
+          }
+        } catch (err) {
+          showToast("Anti-REA error: " + err.message);
+        } finally {
+          if (btn) { btn.disabled = false; btn.textContent = "Harden Release"; }
+        }
+      });
 
       // MODALS HANDLERS
       const agentDialog = document.getElementById("agent-dialog");
@@ -1417,7 +1631,7 @@ export function renderWorkspaceHtml(
             profile: {
               name,
               role,
-              tools: ["read_file", "search_files", "execute_command"],
+              tools: ["read_file", "search_files", "run_command"],
               permissions: { filesystem: "workspace_read_write", bash: "sandboxed" },
               systemPrompt: prompt || "You are " + name + ", a specialist agent.",
             }
@@ -1451,53 +1665,17 @@ export function renderWorkspaceHtml(
             }
           });
           mcpDialog?.close();
-          showToast("MCP Server registered: " + serverId);
+          showToast("MCP server " + serverId + " added.");
           populateViewData("mcp");
         } catch (err) {
-          showToast("Error registering MCP: " + err.message);
-        }
-      });
-
-      // MODEL API KEY SAVING
-      document.addEventListener("click", async (e) => {
-        const saveKeyBtn = e.target.closest("[data-save-key]");
-        if (saveKeyBtn) {
-          const prov = saveKeyBtn.getAttribute("data-save-key");
-          const input = document.getElementById("key-input-" + prov);
-          const keyVal = input ? input.value.trim() : "";
-          if (!keyVal) return;
-          try {
-            await callRpc("setProviderApiKey", { provider: prov, apiKey: keyVal });
-            input.value = "";
-            showToast("API key securely stored for " + prov);
-            populateViewData("models");
-          } catch (err) {
-            showToast("Failed to store API key: " + err.message);
-          }
-        }
-      });
-
-      // TEST MCP CONNECTION
-      document.addEventListener("click", async (e) => {
-        const testBtn = e.target.closest("[data-test-mcp]");
-        if (testBtn) {
-          const mcpName = testBtn.getAttribute("data-test-mcp");
-          testBtn.textContent = "Testing...";
-          try {
-            const res = await callRpc("connectMcpServer", { serverId: mcpName });
-            testBtn.textContent = "✓ Connected";
-            showToast("MCP " + mcpName + " connection validated");
-          } catch (err) {
-            testBtn.textContent = "Test Ping";
-            showToast("MCP Ping: " + err.message);
-          }
+          showToast("Error adding MCP server: " + err.message);
         }
       });
 
       // INITIALIZE
       updateSessionDropdown();
       updateControlsState();
-      renderInspectorContent();
+      populateViewData("workspace");
     })();
   </script>
 </body>

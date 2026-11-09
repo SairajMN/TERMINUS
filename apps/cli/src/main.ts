@@ -47,6 +47,7 @@ import {
 import { scanShortcuts } from "./debt";
 import { loadHomeEnv } from "./env";
 import { clip, fitWidth, wrap } from "./fit";
+import { interactiveSelect } from "./menu";
 import { replaySession } from "./replay";
 import { buildPriorContext } from "./resume";
 import { createStatus } from "./status";
@@ -483,10 +484,33 @@ const main = async (): Promise<number> => {
       return 0;
     }
     const skills = bridge.listSkills(workspaceRoot);
-    process.stdout.write("  TERMINUS Skills Studio\n");
     if (skills.length === 0) {
+      process.stdout.write("  TERMINUS Skills Studio\n");
       process.stdout.write("    no skills found in workspace or user library\n");
+    } else if (process.stdin.isTTY) {
+      const selected = await interactiveSelect(
+        "TERMINUS Skills Studio — Select a skill to inspect or approve",
+        skills.map((s) => ({
+          label: s.name,
+          value: s,
+          badge: s.trustState === "quarantined" ? "quarantined" : s.scope || "workspace",
+          hint: clip(s.description || "", 40),
+        })),
+      );
+      if (selected) {
+        process.stdout.write(
+          `\n  \x1B[1m${selected.name}\x1B[0m (${selected.scope || "workspace"})\n`,
+        );
+        process.stdout.write(`  Trust state: ${selected.trustState || "trusted"}\n`);
+        process.stdout.write(`  Description: ${selected.description || "none"}\n`);
+        if (selected.trustState === "quarantined") {
+          const res = bridge.approveQuarantinedSkill(selected.name, selected.content);
+          process.stdout.write(`  ✓ Skill "${selected.name}" approved.\n`);
+          process.stdout.write(`    SHA-256: ${res.sha256}\n`);
+        }
+      }
     } else {
+      process.stdout.write("  TERMINUS Skills Studio\n");
       for (const s of skills) {
         const trust = s.trustState === "quarantined" ? "[quarantined]" : "[trusted]    ";
         process.stdout.write(
@@ -531,12 +555,41 @@ const main = async (): Promise<number> => {
       }
     }
     const mcpData = bridge.listMcpServers();
-    process.stdout.write("  TERMINUS MCP & Integrations\n");
-    process.stdout.write("  Presets & Active Connections:\n");
-    for (const p of mcpData.presets) {
-      process.stdout.write(
-        `    ${p.name.padEnd(16)} transport:${p.template.transport.padEnd(14)} ${clip(p.description, 45)}\n`,
+    if (process.stdin.isTTY && mcpData.presets.length > 0) {
+      const selectedPreset = await interactiveSelect(
+        "TERMINUS MCP Servers — Select a preset to test connection and inspect tools",
+        mcpData.presets.map((p) => ({
+          label: p.name,
+          value: p,
+          badge: p.template.transport,
+          hint: clip(p.description, 40),
+        })),
       );
+      if (selectedPreset) {
+        process.stdout.write(
+          `\n  Connecting to ${selectedPreset.name} (${selectedPreset.template.transport})...\n`,
+        );
+        const start = Date.now();
+        const res = await bridge.connectMcpServer(selectedPreset.name);
+        const latencyMs = Date.now() - start;
+        if (res.status === "connected") {
+          process.stdout.write(`  ✓ Connected (Latency: ${latencyMs}ms)\n`);
+          process.stdout.write(`  Discovered Tools (${res.tools.length}):\n`);
+          for (const t of res.tools) {
+            process.stdout.write(`    - ${t.name}: ${clip(t.description || "", 50)}\n`);
+          }
+        } else {
+          process.stdout.write(`  ✗ Status: ${res.status} (${res.lastError || "failed"})\n`);
+        }
+      }
+    } else {
+      process.stdout.write("  TERMINUS MCP & Integrations\n");
+      process.stdout.write("  Presets & Active Connections:\n");
+      for (const p of mcpData.presets) {
+        process.stdout.write(
+          `    ${p.name.padEnd(16)} transport:${p.template.transport.padEnd(14)} ${clip(p.description, 45)}\n`,
+        );
+      }
     }
     await bridge.shutdown();
     store.close();
@@ -549,6 +602,23 @@ const main = async (): Promise<number> => {
     process.stdout.write("  TERMINUS Isolated Plugin Extension Host\n");
     if (exts.length === 0) {
       process.stdout.write("    0 extensions installed. Add plugins in ~/.terminus/plugins\n");
+    } else if (process.stdin.isTTY) {
+      const selected = await interactiveSelect(
+        "TERMINUS Plugins — Select an extension to inspect",
+        exts.map((e) => ({
+          label: e.manifest.name,
+          value: e,
+          badge: e.status,
+          hint: clip(e.manifest.description || "", 40),
+        })),
+      );
+      if (selected) {
+        process.stdout.write(
+          `\n  \x1B[1m${selected.manifest.name}\x1B[0m (v${selected.manifest.version})\n`,
+        );
+        process.stdout.write(`  Status: ${selected.status}\n`);
+        process.stdout.write(`  Description: ${selected.manifest.description || "none"}\n`);
+      }
     } else {
       for (const ext of exts) {
         process.stdout.write(

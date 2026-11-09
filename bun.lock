@@ -65,6 +65,13 @@
         "zod": "^4.6.7",
       },
     },
+    "packages/anti-rea": {
+      "name": "@terminus/anti-rea",
+      "version": "0.3.2",
+      "dependencies": {
+        "@terminus/shared": "workspace:*",
+      },
+    },
     "packages/context-engine": {
       "name": "@terminus/context-engine",
       "version": "0.2.0",
@@ -129,6 +136,7 @@
       "version": "0.3.2",
       "dependencies": {
         "@terminus/agent-runtime": "workspace:*",
+        "@terminus/anti-rea": "workspace:*",
         "@terminus/context-engine": "workspace:*",
         "@terminus/extension-host": "workspace:*",
         "@terminus/extension-sdk": "workspace:*",
@@ -202,6 +210,8 @@
     "@stablelib/base64": ["@stablelib/base64@1.0.1", "", {}, "sha512-1bnPQqSxSuc3Ii6MhBysoWCg58j97aUjuCSZrGSmDxNqtytIi0k8utUenAwTZN4V5mXXYGsVUI9zeBqy+jBOSQ=="],
 
     "@terminus/agent-runtime": ["@terminus/agent-runtime@workspace:packages/agent-runtime"],
+
+    "@terminus/anti-rea": ["@terminus/anti-rea@workspace:packages/anti-rea"],
 
     "@terminus/cli": ["@terminus/cli@workspace:apps/cli"],
 
