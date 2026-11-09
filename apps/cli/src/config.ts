@@ -1,14 +1,17 @@
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import type { ProviderName } from "@terminus/model-gateway";
 import type { Mode } from "@terminus/shared";
 
 export interface TerminusConfig {
   mode?: Mode;
   model?: string;
-  provider?: "nebius" | "anthropic";
+  provider?: ProviderName;
   verify?: string[];
   timeoutSeconds?: number;
+  maxTokens?: number;
+  maxCostUsd?: number;
 }
 
 const readConfig = (path: string): TerminusConfig => {

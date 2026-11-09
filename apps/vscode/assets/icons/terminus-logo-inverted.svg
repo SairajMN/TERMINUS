@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="200" viewBox="0 0 640 200" role="img" aria-labelledby="title desc">
+  <title id="title">TERMINUS Logo — Terminal Frame (Inverted)</title>
+  <desc id="desc">White TERMINUS horizontal lockup for dark backgrounds.</desc>
+  <g>
+<g fill="none" stroke="#F4F4F4" stroke-width="10" stroke-linecap="square" stroke-linejoin="miter">
+  <path d="M46 74 V46 H74" />
+  <path d="M126 46 H154 V74" />
+  <path d="M46 126 V154 H74" />
+  <path d="M126 154 H154 V126" />
+</g>
+<path d="M68 72 H132 V86 H107 V130 H93 V86 H68 Z" fill="#F4F4F4" />
+<rect x="135" y="128" width="13" height="13" fill="#F4F4F4" />
+</g>
+  <text x="205" y="119" fill="#F4F4F4" font-family="Inter, Geist, Helvetica Neue, Arial, sans-serif" font-size="47" font-weight="650" letter-spacing="5.8">TERMINUS</text>
+</svg>

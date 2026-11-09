@@ -7,6 +7,7 @@
   ],
   "scripts": {
     "terminus": "bun apps/cli/src/main.ts",
+    "gui": "bun apps/cli/src/main.ts --gui",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
@@ -23,10 +24,17 @@
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",
     "@terminus/agent-runtime": "workspace:*",
+    "@terminus/context-engine": "workspace:*",
+    "@terminus/extension-host": "workspace:*",
+    "@terminus/extension-sdk": "workspace:*",
+    "@terminus/mcp-client": "workspace:*",
     "@terminus/model-gateway": "workspace:*",
     "@terminus/permission-engine": "workspace:*",
+    "@terminus/runtime-bridge": "workspace:*",
     "@terminus/session-store": "workspace:*",
     "@terminus/shared": "workspace:*",
+    "@terminus/tool-runtime": "workspace:*",
+    "@terminus/workspace-ui": "workspace:*",
     "@types/bun": "^1.4.3",
     "typescript": "^7.0.2"
   }

@@ -38,3 +38,41 @@ export function nebiusGateway(
     },
   };
 }
+
+export function openaiCompatibleGateway(options: {
+  apiKey?: string;
+  envKey?: string;
+  baseURL: string;
+  model: string;
+  allowEmptyKey?: boolean;
+}): ModelGateway {
+  return {
+    async *complete(request: ChatRequest, signal?: AbortSignal): AsyncIterable<ModelEvent> {
+      const apiKey =
+        options.apiKey ??
+        (options.envKey ? process.env[options.envKey] : undefined) ??
+        (options.allowEmptyKey ? "ollama" : undefined);
+      if (!apiKey) {
+        const keyName = options.envKey ?? "API_KEY";
+        throw new Error(`${keyName} is not set. Export ${keyName} in your environment.`);
+      }
+      const client = new OpenAI({
+        apiKey,
+        baseURL: options.baseURL,
+        maxRetries: 3,
+      });
+      const stream = await client.chat.completions.create(
+        {
+          model: options.model,
+          messages: toOpenAIMessages(request),
+          ...(request.tools.length > 0 ? { tools: toOpenAITools(request.tools) } : {}),
+          max_tokens: request.maxTokens ?? DEFAULT_MAX_TOKENS,
+          stream: true,
+          stream_options: { include_usage: true },
+        },
+        { signal },
+      );
+      yield* consumeOpenAIStream(stream as AsyncIterable<never>);
+    },
+  };
+}

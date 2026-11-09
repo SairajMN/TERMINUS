@@ -77,6 +77,54 @@ describe("command gate", () => {
     expect(d.action).toBe("ask");
     expect(d.tier).toBe("high_impact");
   });
+
+  it("handles chained commands and enforces the most restrictive segment policy", () => {
+    // Chained with a hard-denied command
+    expect(
+      engine("act").evaluate({ kind: "command", command: "git status && rm -rf node_modules" })
+        .action,
+    ).toBe("deny");
+    expect(engine("auto").evaluate({ kind: "command", command: "ls; sudo rm -rf /" }).action).toBe(
+      "deny",
+    );
+
+    // Chained with an unclassified/modifying command in plan mode
+    expect(
+      engine("plan").evaluate({ kind: "command", command: "git status && npm run test" }).action,
+    ).toBe("deny");
+    // Allowed in act mode
+    expect(
+      engine("act").evaluate({ kind: "command", command: "git status && npm run test" }).action,
+    ).toBe("allow");
+  });
+
+  it("escalates read commands with output redirection to modify tier", () => {
+    // In plan mode, reads are allowed but modify is denied
+    expect(engine("plan").evaluate({ kind: "command", command: "cat foo.txt" }).action).toBe(
+      "allow",
+    );
+    expect(
+      engine("plan").evaluate({ kind: "command", command: "cat foo.txt > out.txt" }).action,
+    ).toBe("deny");
+
+    // In act mode, modify is allowed
+    expect(
+      engine("act").evaluate({ kind: "command", command: "cat foo.txt > out.txt" }).action,
+    ).toBe("allow");
+    expect(engine("act").evaluate({ kind: "command", command: "ls -la >> log.txt" }).action).toBe(
+      "allow",
+    );
+  });
+
+  it("escalates command substitution to high_impact tier requiring confirmation", () => {
+    const sub1 = engine("auto").evaluate({ kind: "command", command: "echo $(whoami)" });
+    expect(sub1.tier).toBe("high_impact");
+    expect(sub1.action).toBe("ask");
+
+    const sub2 = engine("act").evaluate({ kind: "command", command: "cat `hostname`" });
+    expect(sub2.tier).toBe("high_impact");
+    expect(sub2.action).toBe("ask");
+  });
 });
 
 describe("file gate", () => {
@@ -98,7 +146,23 @@ describe("file gate", () => {
       "deny",
     );
     expect(
+      engine("act").evaluate({ kind: "file_read", path: join(root, ".env.development.local") })
+        .action,
+    ).toBe("deny");
+    expect(
+      engine("act").evaluate({ kind: "file_read", path: join(root, ".env.local.backup") }).action,
+    ).toBe("deny");
+    expect(engine("act").evaluate({ kind: "file_read", path: join(root, ".npmrc") }).action).toBe(
+      "deny",
+    );
+    expect(engine("act").evaluate({ kind: "file_read", path: join(root, ".pypirc") }).action).toBe(
+      "deny",
+    );
+    expect(
       engine("act").evaluate({ kind: "file_read", path: join(root, ".env.example") }).action,
+    ).toBe("allow");
+    expect(
+      engine("act").evaluate({ kind: "file_read", path: join(root, ".env.sample") }).action,
     ).toBe("allow");
     expect(
       engine("act").evaluate({ kind: "file_write", path: join(root, ".git", "config") }).action,

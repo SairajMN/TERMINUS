@@ -234,6 +234,7 @@ describe("TERMINUS v0.3.0 capability & benchmark evaluation suite", () => {
       "explorer",
       "architect",
       "coder",
+      "ui_designer",
       "security_auditor",
       "reviewer",
       "debugger",

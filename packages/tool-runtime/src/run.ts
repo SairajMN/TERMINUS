@@ -7,18 +7,48 @@ export interface CommandResult {
   timedOut: boolean;
 }
 
+export interface RunCommandOptions {
+  cwd: string;
+  signal?: AbortSignal;
+  timeoutMs?: number;
+  maxBytes?: number;
+  env?: Record<string, string>;
+  isolateEnv?: boolean;
+}
+
 const DEFAULT_TIMEOUT_MS = 60_000;
 const DEFAULT_MAX_BYTES = 64_000;
 
-export function runCommand(
-  command: string,
-  options: { cwd: string; signal?: AbortSignal; timeoutMs?: number; maxBytes?: number },
-): Promise<CommandResult> {
+const SENSITIVE_ENV_KEYS =
+  /^(ANTHROPIC_API_KEY|OPENAI_API_KEY|NEBIUS_API_KEY|GEMINI_API_KEY|AWS_SECRET_ACCESS_KEY|AWS_SESSION_TOKEN|GITHUB_TOKEN|GH_TOKEN|NPM_TOKEN|SLACK_BOT_TOKEN|TERMINUS_.*)$/i;
+
+/**
+ * Sanitizes an environment map by stripping master API keys and infrastructure
+ * secrets that the agent harness holds, preventing executed child processes from
+ * reading them via `env` or `printenv`.
+ */
+export function sanitizeEnv(env: NodeJS.ProcessEnv = process.env): Record<string, string> {
+  const clean: Record<string, string> = {};
+  for (const [key, value] of Object.entries(env)) {
+    if (value !== undefined && !SENSITIVE_ENV_KEYS.test(key)) {
+      clean[key] = value;
+    }
+  }
+  return clean;
+}
+
+export function runCommand(command: string, options: RunCommandOptions): Promise<CommandResult> {
   return new Promise((resolveResult) => {
+    const shouldIsolate = options.isolateEnv !== false;
+    const processEnv = shouldIsolate
+      ? sanitizeEnv(options.env ?? process.env)
+      : (options.env ?? process.env);
+
     const child = spawn(command, {
       cwd: options.cwd,
       shell: true,
       stdio: ["ignore", "pipe", "pipe"],
+      env: processEnv,
     });
     const maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES;
     let output = "";

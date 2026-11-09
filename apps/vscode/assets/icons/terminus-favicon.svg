@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180" role="img" aria-labelledby="title desc">
+  <title id="title">TERMINUS Favicon</title>
+  <desc id="desc">Terminal Frame monogram favicon.</desc>
+  <g transform="translate(0 0)">
+<g fill="none" stroke="#111111" stroke-width="10" stroke-linecap="square" stroke-linejoin="miter">
+  <path d="M46 74 V46 H74" />
+  <path d="M126 46 H154 V74" />
+  <path d="M46 126 V154 H74" />
+  <path d="M126 154 H154 V126" />
+</g>
+<path d="M68 72 H132 V86 H107 V130 H93 V86 H68 Z" fill="#111111" />
+<rect x="135" y="128" width="13" height="13" fill="#111111" />
+</g>
+</svg>

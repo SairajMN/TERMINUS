@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" role="img" aria-labelledby="title desc">
+  <title id="title">TERMINUS Activity Bar Icon</title>
+  <desc id="desc">Monochrome Terminal Frame mark for an IDE activity bar.</desc>
+  <g fill="none" stroke="#C8C8C8" stroke-width="1.55" stroke-linecap="square" stroke-linejoin="miter">
+    <path d="M6.1 9.6 V6.1 H9.6" />
+    <path d="M16.4 6.1 H19.9 V9.6" />
+    <path d="M6.1 14.4 V17.9 H9.6" />
+    <path d="M16.4 17.9 H19.9 V14.4" />
+  </g>
+  <path d="M8.8 9.2 H17.2 V11 H14 V16.9 H12 V11 H8.8 Z" fill="#C8C8C8" />
+  <rect x="17.45" y="16.45" width="1.65" height="1.65" fill="#C8C8C8" />
+</svg>

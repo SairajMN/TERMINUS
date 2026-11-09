@@ -1,6 +1,6 @@
 {
   "name": "@terminus/cli",
-  "version": "0.1.2",
+  "version": "0.3.2",
   "private": true,
   "bin": {
     "terminus": "src/main.ts"
@@ -9,7 +9,9 @@
     "@terminus/agent-runtime": "workspace:*",
     "@terminus/context-engine": "workspace:*",
     "@terminus/model-gateway": "workspace:*",
+    "@terminus/runtime-bridge": "workspace:*",
     "@terminus/session-store": "workspace:*",
-    "@terminus/shared": "workspace:*"
+    "@terminus/shared": "workspace:*",
+    "@terminus/workspace-ui": "workspace:*"
   }
 }

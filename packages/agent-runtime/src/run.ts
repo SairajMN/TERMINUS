@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   buildRepoMap,
+  compactMessages,
   EvidenceStore,
   hydrateCapsule,
   loadInstructions,
@@ -21,17 +22,38 @@ import {
   TaskMachine,
   type ToolDefinition,
 } from "@terminus/shared";
-import { actionFor, createTools, redact, runCommand } from "@terminus/tool-runtime";
+import {
+  actionFor,
+  createTools,
+  FileSnapshotStore,
+  redact,
+  runCommand,
+} from "@terminus/tool-runtime";
 import { z } from "zod";
 import { buildChatMessage, buildSystemPrompt, buildTaskMessage } from "./prompt";
+import { scanFiles } from "./sast";
+import { formatPostEditDiagnostics, verifyEditedFile } from "./verifier";
 
-const MAX_ITERATIONS = 30;
+const MAX_ITERATIONS = 150;
 const MAX_REPLAN_ATTEMPTS = 3;
 const MAX_VERIFY_CYCLES = 2;
 const MAX_REVIEW_CYCLES = 1;
 const RESULT_CHAR_BUDGET = 12_000;
 const OUTPUT_CHAR_BUDGET = 8_000;
-const READ_ONLY_TOOLS = new Set(["list_dir", "read_file", "search", "git_status", "git_diff"]);
+const READ_ONLY_TOOLS = new Set([
+  "list_dir",
+  "read_file",
+  "file_outline",
+  "search",
+  "find_symbol",
+  "git_status",
+  "git_diff",
+  "git_log",
+]);
+
+export interface ExecutionGate {
+  waitIfPaused(signal?: AbortSignal): Promise<void>;
+}
 
 export interface RunTaskOptions {
   workspaceRoot: string;
@@ -42,15 +64,25 @@ export interface RunTaskOptions {
   store?: SessionStore;
   verifyCommands?: string[];
   maxIterations?: number;
+  maxTokens?: number;
   commandTimeoutMs?: number;
   priorContext?: string;
   signal?: AbortSignal;
+  executionGate?: ExecutionGate;
+  extraTools?: ToolDefinition<never>[];
+  getExtraTools?: () => ToolDefinition<never>[];
 }
 
 export interface AgentSession {
   run(task: string, overrides?: { signal?: AbortSignal }): Promise<CompletionReport>;
   chat(message: string, overrides?: { signal?: AbortSignal }): Promise<string>;
   reset(): void;
+  undo(): { restored: string[]; removed: string[] };
+  undoFile(relPath: string): "restored" | "removed" | "untouched";
+  trackedSnapshots(): string[];
+  snapshotBaseline(relPath: string): { existed: boolean; content?: Buffer } | undefined;
+  compact(): { savedChars: number; estimatedTokensSaved: number; compactedResultsCount: number };
+  lastPlan(): string | null;
 }
 
 const toSpecs = (tools: ToolDefinition<never>[]) =>
@@ -90,7 +122,9 @@ export const detectVerifications = (workspaceRoot: string): string[] => {
 export function createAgent(options: RunTaskOptions): AgentSession {
   const messages: ChatMessage[] = [];
   let evidence = new EvidenceStore();
+  const snapshots = new FileSnapshotStore();
   let bootstrapped = false;
+  let latestPlan: string | null = null;
 
   const root = options.workspaceRoot;
 
@@ -183,13 +217,23 @@ export function createAgent(options: RunTaskOptions): AgentSession {
     };
 
     const engine = new PermissionEngine({ workspaceRoot: root, mode: "plan" });
-    const tools = [...createTools(), webResearch as unknown as ToolDefinition<never>];
+    const dynamicExtras = options.getExtraTools
+      ? options.getExtraTools()
+      : (options.extraTools ?? []);
+    const tools = [
+      ...createTools(),
+      webResearch as unknown as ToolDefinition<never>,
+      ...dynamicExtras,
+    ];
     const toolByName = new Map(tools.map((tool) => [tool.name, tool]));
     const changedFiles = new Set<string>();
     const commands: string[] = [];
     const maxIterations = options.maxIterations ?? MAX_ITERATIONS;
     const tokens = { prompt: 0, completion: 0 };
     let finalReview: CompletionReport["review"];
+    const readSignatures = new Set<string>();
+    let lastToolSignature = "";
+    let identicalCallStreak = 0;
 
     const executeTool = async (call: {
       id: string;
@@ -211,10 +255,37 @@ export function createAgent(options: RunTaskOptions): AgentSession {
           true,
         );
       }
+      const callSignature = `${call.name}:${JSON.stringify(parsed.data)}`;
+      if (callSignature === lastToolSignature) {
+        identicalCallStreak++;
+      } else {
+        lastToolSignature = callSignature;
+        identicalCallStreak = 1;
+      }
+      if (identicalCallStreak >= 3) {
+        return resultPart(
+          `loop detected: ${call.name} was called ${identicalCallStreak} times with identical arguments. Do not repeat the same call; proceed with your next step or edit.`,
+          true,
+        );
+      }
+
       const action = actionFor(call.name, parsed.data);
       const decision = action
         ? engine.evaluate(action)
-        : { action: "allow" as const, tier: tool.tier, reason: "fixed internal tool" };
+        : (engine.mode === "plan" || engine.mode === "ask" || engine.mode === "audit") &&
+            tool.tier !== "read"
+          ? {
+              action: "deny" as const,
+              tier: tool.tier,
+              reason: `mode "${engine.mode}" does not permit ${tool.tier} operations`,
+            }
+          : tool.tier === "high_impact"
+            ? {
+                action: "ask" as const,
+                tier: tool.tier,
+                reason: "high-impact external tool requires explicit approval",
+              }
+            : { action: "allow" as const, tier: tool.tier, reason: "fixed internal tool" };
       emit({
         type: "tool",
         name: call.name,
@@ -239,12 +310,38 @@ export function createAgent(options: RunTaskOptions): AgentSession {
           return resultPart("the user rejected this action", true);
         }
       }
+
+      if (
+        action?.kind === "file_read" &&
+        call.name === "read_file" &&
+        readSignatures.has(callSignature) &&
+        evidence.checkFresh(root, action.path) === "fresh"
+      ) {
+        const cachedMsg = `[cached: ${action.path} is unchanged since your earlier read in this turn. Use the contents already in context or use file_outline / grep if you need specific lines.]`;
+        emit({
+          type: "tool_result",
+          name: call.name,
+          ok: true,
+          summary: cachedMsg,
+        });
+        return resultPart(cachedMsg, false);
+      }
+
       if (action?.kind === "file_write" && evidence.checkFresh(root, action.path) === "stale") {
         return resultPart(
           `${action.path} changed since it was read (possibly edited outside this session). Re-read it, then retry.`,
           true,
         );
       }
+
+      if (action?.kind === "file_write") {
+        snapshots.recordBeforeWrite(root, action.path);
+        if (call.name === "move_file") {
+          const fromPath = (parsed.data as { from?: string }).from;
+          if (fromPath) snapshots.recordBeforeWrite(root, fromPath);
+        }
+      }
+
       const result = await tool.execute(parsed.data as never, {
         workspaceRoot: root,
         signal: controller.signal,
@@ -253,6 +350,13 @@ export function createAgent(options: RunTaskOptions): AgentSession {
       if (action?.kind === "file_write" && result.ok) {
         changedFiles.add(action.path);
         evidence.invalidate(action.path);
+        readSignatures.clear();
+        if (call.name === "write_file" || call.name === "edit_file" || call.name === "multi_edit") {
+          const issues = verifyEditedFile(root, action.path);
+          if (issues.length > 0) {
+            result.output += formatPostEditDiagnostics(issues);
+          }
+        }
       }
       if (call.name === "web_research" && result.ok) {
         evidence.add({
@@ -266,6 +370,7 @@ export function createAgent(options: RunTaskOptions): AgentSession {
       if (action?.kind === "file_read" && call.name === "read_file" && result.ok) {
         try {
           evidence.recordRead(root, action.path, readFileSync(join(root, action.path), "utf8"));
+          readSignatures.add(callSignature);
         } catch {
           evidence.invalidate(action.path);
         }
@@ -276,14 +381,35 @@ export function createAgent(options: RunTaskOptions): AgentSession {
         ok: result.ok,
         summary: clip(result.output, 300),
       });
-      return resultPart(result.output, !result.ok);
+      const outputText =
+        call.name === "web_research"
+          ? `<untrusted_research query="${String((parsed.data as { query?: string }).query ?? "")}">\n${result.output}\n</untrusted_research>`
+          : result.output;
+      return resultPart(outputText, !result.ok);
     };
 
     const runTurn = async (allowed: ToolDefinition<never>[]): Promise<string> => {
       const specs = toSpecs(allowed);
       let iterations = 0;
       while (true) {
+        if (options.executionGate) {
+          await options.executionGate.waitIfPaused(controller.signal);
+        }
         if (++iterations > maxIterations) throw new Error("iteration budget exhausted");
+        if (
+          options.maxTokens !== undefined &&
+          tokens.prompt + tokens.completion > options.maxTokens
+        ) {
+          throw new Error(
+            `token budget exhausted (${tokens.prompt + tokens.completion} > ${options.maxTokens})`,
+          );
+        }
+        if (messages.length > 7) {
+          const compacted = compactMessages(messages);
+          if (compacted.stats.compactedResultsCount > 0) {
+            messages.splice(0, messages.length, ...compacted.messages);
+          }
+        }
         let narration = "";
         const toolCalls: { id: string; name: string; input: unknown }[] = [];
         for await (const event of options.gateway.complete(
@@ -413,24 +539,41 @@ export function createAgent(options: RunTaskOptions): AgentSession {
     };
 
     const runReview = async (): Promise<{ verdict: "clear" | "issues"; findings: string }> => {
+      const sastFindings = scanFiles(Array.from(changedFiles), root);
+      const sastBlock =
+        sastFindings.length > 0
+          ? `\nAutomated SAST findings detected in changed files:\n${sastFindings
+              .map(
+                (f) =>
+                  `- ${f.severity}: [${f.category}] ${f.file}:${f.line} - ${f.message} (${f.recommendation})`,
+              )
+              .join("\n")}\n`
+          : "";
+
       messages.push({
         role: "user",
         content: [
           {
             type: "text",
-            text: `Post-change review for this task: ${task}\n\nUse git_diff and read the files you changed. Look for bugs, security problems, risky code without a test, performance issues, and anything contradicting the acceptance criteria. Start each finding line with - blocker: or - major: or - minor:. If nothing is at blocker or major level, end your reply with exactly: verdict: clear`,
+            text: `Post-change review for this task: ${task}\n${sastBlock}\nUse git_diff and read the files you changed. Look for bugs, security problems, risky code without a test, performance issues, and anything contradicting the acceptance criteria. Start each finding line with - blocker: or - major: or - minor:. If nothing is at blocker or major level, end your reply with exactly: verdict: clear`,
           },
         ],
       });
-      const findings = clip(
+      const modelFindings = clip(
         (await runTurn(tools.filter((tool) => tool.tier === "read"))).trim(),
         4_000,
       );
-      const verdict = /-\s*(blocker|major):/i.test(findings)
-        ? ("issues" as const)
-        : ("clear" as const);
-      finalReview = { verdict, summary: findings };
-      return { verdict, findings };
+      const sastHasSevere = sastFindings.some(
+        (f) => f.severity === "blocker" || f.severity === "major",
+      );
+      const modelHasSevere = /-\s*(blocker|major):/i.test(modelFindings);
+      const verdict = sastHasSevere || modelHasSevere ? ("issues" as const) : ("clear" as const);
+      const combinedFindings =
+        sastHasSevere && !modelHasSevere
+          ? `${sastFindings.map((f) => `- ${f.severity}: [${f.category}] ${f.file}:${f.line} - ${f.message}`).join("\n")}\n\n${modelFindings}`
+          : modelFindings;
+      finalReview = { verdict, summary: combinedFindings };
+      return { verdict, findings: combinedFindings };
     };
 
     const finalize = (completion: CompletionReport): CompletionReport => {
@@ -499,6 +642,7 @@ export function createAgent(options: RunTaskOptions): AgentSession {
 
       state("planning");
       let plan = await runTurn(readTools);
+      latestPlan = plan;
       emit({ type: "plan", text: plan });
 
       if (mode === "plan") {
@@ -530,6 +674,7 @@ export function createAgent(options: RunTaskOptions): AgentSession {
         });
         state("planning");
         plan = await runTurn(readTools);
+        latestPlan = plan;
         emit({ type: "plan", text: plan });
       }
       if (!approved) {
@@ -627,8 +772,23 @@ export function createAgent(options: RunTaskOptions): AgentSession {
     reset: () => {
       messages.length = 0;
       evidence = new EvidenceStore();
+      snapshots.clear();
       bootstrapped = false;
+      latestPlan = null;
     },
+    undo: () => snapshots.rollbackAll(root),
+    undoFile: (relPath: string) => snapshots.rollbackFile(root, relPath),
+    trackedSnapshots: () => snapshots.trackedFiles(),
+    snapshotBaseline: (relPath: string) => snapshots.getBaseline(root, relPath),
+    compact: () => {
+      const compacted = compactMessages(messages, {
+        maxChars: 8_000,
+        preserveRecentMessages: 4,
+      });
+      messages.splice(0, messages.length, ...compacted.messages);
+      return compacted.stats;
+    },
+    lastPlan: () => latestPlan,
   };
 }
 

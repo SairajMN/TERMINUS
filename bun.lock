@@ -12,17 +12,24 @@
       "devDependencies": {
         "@biomejs/biome": "^2.5.15",
         "@terminus/agent-runtime": "workspace:*",
+        "@terminus/context-engine": "workspace:*",
+        "@terminus/extension-host": "workspace:*",
+        "@terminus/extension-sdk": "workspace:*",
+        "@terminus/mcp-client": "workspace:*",
         "@terminus/model-gateway": "workspace:*",
         "@terminus/permission-engine": "workspace:*",
+        "@terminus/runtime-bridge": "workspace:*",
         "@terminus/session-store": "workspace:*",
         "@terminus/shared": "workspace:*",
+        "@terminus/tool-runtime": "workspace:*",
+        "@terminus/workspace-ui": "workspace:*",
         "@types/bun": "^1.4.3",
         "typescript": "^7.0.2",
       },
     },
     "apps/cli": {
       "name": "@terminus/cli",
-      "version": "0.1.0",
+      "version": "0.3.2",
       "bin": {
         "terminus": "src/main.ts",
       },
@@ -30,13 +37,23 @@
         "@terminus/agent-runtime": "workspace:*",
         "@terminus/context-engine": "workspace:*",
         "@terminus/model-gateway": "workspace:*",
+        "@terminus/runtime-bridge": "workspace:*",
         "@terminus/session-store": "workspace:*",
         "@terminus/shared": "workspace:*",
+        "@terminus/workspace-ui": "workspace:*",
+      },
+    },
+    "apps/vscode": {
+      "name": "terminus-vscode",
+      "version": "0.3.2",
+      "dependencies": {
+        "@terminus/runtime-bridge": "workspace:*",
+        "@terminus/workspace-ui": "workspace:*",
       },
     },
     "packages/agent-runtime": {
       "name": "@terminus/agent-runtime",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "dependencies": {
         "@terminus/context-engine": "workspace:*",
         "@terminus/model-gateway": "workspace:*",
@@ -50,29 +67,76 @@
     },
     "packages/context-engine": {
       "name": "@terminus/context-engine",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "dependencies": {
         "@terminus/shared": "workspace:*",
       },
     },
+    "packages/extension-host": {
+      "name": "@terminus/extension-host",
+      "version": "0.3.2",
+      "dependencies": {
+        "@terminus/extension-sdk": "workspace:*",
+        "@terminus/permission-engine": "workspace:*",
+        "@terminus/shared": "workspace:*",
+        "@terminus/tool-runtime": "workspace:*",
+        "zod": "^4.6.7",
+      },
+    },
+    "packages/extension-sdk": {
+      "name": "@terminus/extension-sdk",
+      "version": "0.3.2",
+      "dependencies": {
+        "@terminus/shared": "workspace:*",
+        "zod": "^4.6.7",
+      },
+    },
+    "packages/mcp-client": {
+      "name": "@terminus/mcp-client",
+      "version": "0.3.2",
+      "dependencies": {
+        "@terminus/permission-engine": "workspace:*",
+        "@terminus/shared": "workspace:*",
+        "@terminus/tool-runtime": "workspace:*",
+        "zod": "^4.6.7",
+      },
+    },
     "packages/model-gateway": {
       "name": "@terminus/model-gateway",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "dependencies": {
         "@anthropic-ai/sdk": "^0.134.0",
       },
     },
     "packages/permission-engine": {
       "name": "@terminus/permission-engine",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "dependencies": {
         "@terminus/shared": "workspace:*",
       },
     },
     "packages/research": {
       "name": "@terminus/research",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "dependencies": {
+        "@terminus/shared": "workspace:*",
+        "@terminus/tool-runtime": "workspace:*",
+        "zod": "^4.6.7",
+      },
+    },
+    "packages/runtime-bridge": {
+      "name": "@terminus/runtime-bridge",
+      "version": "0.3.2",
+      "dependencies": {
+        "@terminus/agent-runtime": "workspace:*",
+        "@terminus/context-engine": "workspace:*",
+        "@terminus/extension-host": "workspace:*",
+        "@terminus/extension-sdk": "workspace:*",
+        "@terminus/mcp-client": "workspace:*",
+        "@terminus/model-gateway": "workspace:*",
+        "@terminus/permission-engine": "workspace:*",
+        "@terminus/research": "workspace:*",
+        "@terminus/session-store": "workspace:*",
         "@terminus/shared": "workspace:*",
         "@terminus/tool-runtime": "workspace:*",
         "zod": "^4.6.7",
@@ -80,22 +144,31 @@
     },
     "packages/session-store": {
       "name": "@terminus/session-store",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "dependencies": {
         "@terminus/shared": "workspace:*",
       },
     },
     "packages/shared": {
       "name": "@terminus/shared",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "dependencies": {
         "zod": "^4.6.7",
       },
     },
     "packages/tool-runtime": {
       "name": "@terminus/tool-runtime",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "dependencies": {
+        "@terminus/shared": "workspace:*",
+        "zod": "^4.6.7",
+      },
+    },
+    "packages/workspace-ui": {
+      "name": "@terminus/workspace-ui",
+      "version": "0.3.2",
+      "dependencies": {
+        "@terminus/runtime-bridge": "workspace:*",
         "@terminus/shared": "workspace:*",
         "zod": "^4.6.7",
       },
@@ -134,17 +207,27 @@
 
     "@terminus/context-engine": ["@terminus/context-engine@workspace:packages/context-engine"],
 
+    "@terminus/extension-host": ["@terminus/extension-host@workspace:packages/extension-host"],
+
+    "@terminus/extension-sdk": ["@terminus/extension-sdk@workspace:packages/extension-sdk"],
+
+    "@terminus/mcp-client": ["@terminus/mcp-client@workspace:packages/mcp-client"],
+
     "@terminus/model-gateway": ["@terminus/model-gateway@workspace:packages/model-gateway"],
 
     "@terminus/permission-engine": ["@terminus/permission-engine@workspace:packages/permission-engine"],
 
     "@terminus/research": ["@terminus/research@workspace:packages/research"],
 
+    "@terminus/runtime-bridge": ["@terminus/runtime-bridge@workspace:packages/runtime-bridge"],
+
     "@terminus/session-store": ["@terminus/session-store@workspace:packages/session-store"],
 
     "@terminus/shared": ["@terminus/shared@workspace:packages/shared"],
 
     "@terminus/tool-runtime": ["@terminus/tool-runtime@workspace:packages/tool-runtime"],
+
+    "@terminus/workspace-ui": ["@terminus/workspace-ui@workspace:packages/workspace-ui"],
 
     "@types/bun": ["@types/bun@1.4.3", "", { "dependencies": { "bun-types": "1.4.3" } }, "sha512-N67Pqy8JXbAY/j0tNraS3V5mubGvc6rrrNDmDCtZLlFzccbUJPDb0tvgUBC5q4m8ybkP93Jcn1QB+RYQ6PvBhw=="],
 
@@ -199,6 +282,8 @@
     "openai": ["openai@7.33.0", "", { "peerDependencies": { "@aws-sdk/credential-provider-node": ">=3.972.0 <4", "@smithy/hash-node": ">=4.3.0 <5", "@smithy/signature-v4": ">=5.4.0 <6", "undici": ">=5 <9", "ws": "^8.21.0", "zod": "^3.25 || ^4.0" }, "optionalPeers": ["@aws-sdk/credential-provider-node", "@smithy/hash-node", "@smithy/signature-v4", "undici", "ws", "zod"] }, "sha512-OtC8xefTzjyamDjagrVvuZzoB8YiT/xhg9QbBo8cFt+FtaL5wj2eX5CuQcAS2DqNEYqzXIhV3+q4GG2dweYgiw=="],
 
     "standardwebhooks": ["standardwebhooks@1.1.1", "", { "dependencies": { "@stablelib/base64": "^1.0.0", "fast-sha256": "^1.3.0" } }, "sha512-bCbX9ZEyFkWPsRz7Bl3NuQUJohmwGSev/yhr7vhaGPlc4AfIrspIRa6cPTBuI1ItmrTDJ4d/S2hCsfe4+vQGnQ=="],
+
+    "terminus-vscode": ["terminus-vscode@workspace:apps/vscode"],
 
     "ts-algebra": ["ts-algebra@2.0.0", "", {}, "sha512-FPAhNPFMrkwz76P7cdjdmiShwMynZYN6SgOujD1urY4oNm80Ou9oMdmbR45LotcKOXoy7wSmHkRFE6Mxbrhefw=="],
 

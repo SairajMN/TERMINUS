@@ -23,6 +23,35 @@ if (!result.success) {
 const raw = await result.outputs[0].text();
 const bundled = raw.startsWith("#!") ? raw.slice(raw.indexOf("\n") + 1) : raw;
 const cliPath = join(dist, "terminus.js");
+const workerBuild = await Bun.build({
+  entrypoints: [join(root, "packages", "extension-host", "src", "worker-entry.ts")],
+  target: "node",
+  minify: true,
+  sourcemap: "none",
+});
+if (!workerBuild.success) {
+  for (const log of workerBuild.logs) console.error(log);
+  process.exit(1);
+}
+writeFileSync(join(dist, "worker-entry.js"), await workerBuild.outputs[0].text());
+
+const vscodeBuild = await Bun.build({
+  entrypoints: [join(root, "apps", "vscode", "src", "extension.ts")],
+  target: "node",
+  minify: true,
+  sourcemap: "none",
+  externals: ["vscode"],
+});
+if (!vscodeBuild.success) {
+  for (const log of vscodeBuild.logs) console.error(log);
+  process.exit(1);
+}
+mkdirSync(join(root, "apps", "vscode", "dist"), { recursive: true });
+writeFileSync(
+  join(root, "apps", "vscode", "dist", "extension.js"),
+  await vscodeBuild.outputs[0].text(),
+);
+
 writeFileSync(cliPath, `#!/usr/bin/env node\n${bundled}`);
 chmodSync(cliPath, 0o755);
 
@@ -42,7 +71,7 @@ writeFileSync(
       bin: { terminus: "terminus.js" },
       engines: { node: ">=22.5" },
       os: ["darwin", "linux"],
-      files: ["terminus.js", "README.md", "LICENSE"],
+      files: ["terminus.js", "worker-entry.js", "README.md", "LICENSE"],
     },
     null,
     2,

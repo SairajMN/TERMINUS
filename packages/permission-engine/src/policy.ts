@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type { Action, Mode, PermissionDecision, PermissionTier } from "@terminus/shared";
 import { isInside } from "@terminus/shared";
 import defaultPolicy from "./default-policy.json";
+import { hasCommandSubstitution, hasOutputRedirection, splitCommandSegments } from "./parser";
 
 export interface PolicyRule {
   pattern: string;
@@ -30,7 +31,7 @@ const MODE_TIERS: Record<Mode, readonly PermissionTier[]> = {
 };
 
 const SENSITIVE_FILE =
-  /(?:^|\/)\.env(?!\.(example|sample|template))(\.\w+)?$|(?:^|\/)\.(ssh|aws)(\/|$)|(?:^|\/)id_(rsa|dsa|ecdsa|ed25519)(\.\w+)?$|(?:^|\/)(\.netrc|\.git-credentials|credentials|config\.json)$/;
+  /(?:^|\/)\.env(?!\.(example|sample|template))(\.[a-zA-Z0-9._-]+)?$|(?:^|\/)\.(ssh|aws|gnupg)(\/|$)|(?:^|\/)id_(rsa|dsa|ecdsa|ed25519)(\.\w+)?$|(?:^|\/)(\.netrc|\.git-credentials|credentials|\.npmrc|\.pypirc)$/;
 
 const allow = (tier: PermissionTier, reason: string): PermissionDecision => ({
   action: "allow",
@@ -124,15 +125,79 @@ export class PermissionEngine {
   }
 
   private evaluateCommand(command: string): PermissionDecision {
+    // Stage 1: Global hard deny check on the entire command line
     for (const rule of this.hardDeny) {
       if (rule.re.test(command)) return deny("high_impact", rule.reason);
     }
-    const fast = this.fastPath.find((rule) => rule.re.test(command));
-    if (fast) {
-      return MODE_TIERS[this.mode].includes(fast.tier)
-        ? allow(fast.tier, fast.reason)
-        : deny(fast.tier, `mode "${this.mode}" does not permit ${fast.tier} operations`);
+
+    // Stage 2: Segment decomposition
+    const segments = splitCommandSegments(command);
+
+    // If multiple segments exist, evaluate each segment individually
+    if (segments.length > 1) {
+      let highestTier: PermissionTier = "read";
+      let requiresAsk = false;
+      let askReason = "";
+
+      for (const seg of segments) {
+        const segDecision = this.evaluateSingleSegment(seg);
+        if (segDecision.action === "deny") return segDecision;
+        if (segDecision.action === "ask") {
+          requiresAsk = true;
+          askReason = segDecision.reason;
+        }
+        if (segDecision.tier === "high_impact") highestTier = "high_impact";
+        else if (segDecision.tier === "modify" && highestTier === "read") {
+          highestTier = "modify";
+        }
+      }
+
+      if (requiresAsk) {
+        return ask(highestTier, askReason || "chained command requires confirmation");
+      }
+
+      return MODE_TIERS[this.mode].includes(highestTier)
+        ? allow(highestTier, `composite command (${segments.length} operations)`)
+        : deny(highestTier, `mode "${this.mode}" does not permit ${highestTier} operations`);
     }
+
+    return this.evaluateSingleSegment(command);
+  }
+
+  private evaluateSingleSegment(segment: string): PermissionDecision {
+    for (const rule of this.hardDeny) {
+      if (rule.re.test(segment)) return deny("high_impact", rule.reason);
+    }
+
+    // Detect output redirection (> or >>)
+    const hasRedirect = hasOutputRedirection(segment);
+    // Detect command substitution (`...` or $(...))
+    const hasSubst = hasCommandSubstitution(segment);
+
+    const fast = this.fastPath.find((rule) => rule.re.test(segment));
+    if (fast) {
+      // If a command matches a read fast path but performs file redirection or command substitution,
+      // escalate its tier or require approval!
+      let effectiveTier = fast.tier;
+      if (hasRedirect) {
+        effectiveTier = "modify";
+      }
+      if (hasSubst) {
+        effectiveTier = "high_impact";
+      }
+
+      if (effectiveTier === "high_impact") {
+        if (this.mode === "act" || this.mode === "auto") {
+          return ask("high_impact", "command contains command substitution: requires confirmation");
+        }
+        return deny("high_impact", `mode "${this.mode}" does not permit high_impact operations`);
+      }
+
+      return MODE_TIERS[this.mode].includes(effectiveTier)
+        ? allow(effectiveTier, fast.reason + (hasRedirect ? " (with file output)" : ""))
+        : deny(effectiveTier, `mode "${this.mode}" does not permit ${effectiveTier} operations`);
+    }
+
     if (this.mode === "act" || this.mode === "auto") {
       return ask("high_impact", "unrecognized command, nothing claims it is safe");
     }

@@ -1,0 +1,80 @@
+{
+  "name": "terminus-vscode",
+  "displayName": "TERMINUS",
+  "description": "Extensible AI Software Engineering Workspace — Multi-Agent Verified Execution, Cryptographic Evidence Ledger, Skills Studio, MCP Manager, and Isolated Plugin Host.",
+  "version": "0.3.2",
+  "publisher": "terminus",
+  "icon": "assets/icons/icon.png",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onStartupFinished",
+    "onView:terminus.SidebarProvider",
+    "onCommand:terminus.openWorkspace"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "terminus-ActivityBar",
+          "title": "TERMINUS",
+          "icon": "assets/icons/activitybar.svg"
+        }
+      ]
+    },
+    "views": {
+      "terminus-ActivityBar": [
+        {
+          "type": "webview",
+          "id": "terminus.SidebarProvider",
+          "name": "",
+          "icon": "assets/icons/activitybar.svg"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "terminus.openWorkspace",
+        "title": "TERMINUS: Open Full Workspace Tab",
+        "icon": "$(screen-full)"
+      },
+      {
+        "command": "terminus.newCodingSession",
+        "title": "TERMINUS: New Coding Session",
+        "icon": "$(add)"
+      },
+      {
+        "command": "terminus.stopExecution",
+        "title": "TERMINUS: Stop Active Agent Execution",
+        "icon": "$(stop-circle)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "terminus.newCodingSession",
+          "group": "navigation@1",
+          "when": "view == terminus.SidebarProvider"
+        },
+        {
+          "command": "terminus.openWorkspace",
+          "group": "navigation@2",
+          "when": "view == terminus.SidebarProvider"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "terminus.openWorkspace",
+        "key": "ctrl+shift+t",
+        "mac": "cmd+shift+t"
+      }
+    ]
+  },
+  "dependencies": {
+    "@terminus/runtime-bridge": "workspace:*",
+    "@terminus/workspace-ui": "workspace:*"
+  }
+}

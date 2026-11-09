@@ -20,14 +20,40 @@ const accent = paint("185,154,95");
 const header = (text: string) =>
   colored ? `\x1b[48;2;27;42;68m\x1b[38;2;215;219;224m${text}\x1b[0m` : text;
 
+export const terminalFrameMark = (compact = false): string => {
+  if (compact) {
+    return "┌── T ■ ──┐";
+  }
+  return [
+    "  ┌──      ──┐",
+    "  │   ████   │",
+    "  │    ██    │",
+    "  │    ██  ■ │",
+    "  └──      ──┘",
+  ].join("\n");
+};
+
 export const firstRun = (width = fitWidth(), height = fitHeight()): string => {
   const lines: string[] = [""];
-  lines.push(
-    `  ${header(" TERMINUS ")}${
-      width >= 64 ? `  ${muted("research → plan → approve → edit → verify → report")}` : ""
-    }`,
-    "",
-  );
+
+  if (width >= 64 && height >= 22) {
+    lines.push(
+      `  ┌──      ──┐  ${header(" TERMINUS ")}${muted(" · AI Software Engineering Workspace")}`,
+      `  │   ████   │  ${muted("Multi-Agent Verified Execution · Evidence Ledger")}`,
+      `  │    ██    │  ${muted("research → plan → approve → edit → verify → report")}`,
+      `  │    ██  ■ │  ${muted("Skills Studio · Isolated Plugins · MCP Client")}`,
+      "  └──      ──┘",
+      "",
+    );
+  } else {
+    lines.push(
+      `  ${header(" TERMINUS ")}${
+        width >= 64 ? `  ${muted("research → plan → approve → edit → verify → report")}` : ""
+      }`,
+      "",
+    );
+  }
+
   const row = (
     indent: number,
     labelText: string,
@@ -50,8 +76,24 @@ export const firstRun = (width = fitWidth(), height = fitHeight()): string => {
   row(4, "", "terminus    interactive: chat freely; task-like lines run the loop", muted);
   lines.push("");
   row(2, "flags", '--mode ask|plan|audit|act|auto   --yes   --verify "cmd1,cmd2"');
-  row(4, "", "--model <id>   --provider nebius|anthropic   --report json   --timeout <sec>", muted);
-  row(4, "", "--sessions   --resume <id>   --debt   --version   (REPL: /help /clear /quit)", muted);
+  row(
+    4,
+    "",
+    "--model <id>   --provider nebius|anthropic|openai|gemini|ollama   --report json   --timeout <sec>",
+    muted,
+  );
+  row(
+    4,
+    "",
+    "--skills   --mcp   --extensions   --gui [--port <n>]   --harnesses   --doctor",
+    muted,
+  );
+  row(
+    4,
+    "",
+    "--sessions   --resume <id>   --replay <id>   --debt   --max-tokens <n>   --version",
+    muted,
+  );
   if (height >= 18) {
     lines.push("");
     row(2, "", "plans approved before changes · dangerous commands blocked or asked ·", muted);
