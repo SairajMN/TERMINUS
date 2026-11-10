@@ -977,6 +977,15 @@ export function renderWorkspaceHtml(
         setTimeout(() => { toastBanner.style.display = "none"; }, durationMs);
       }
 
+      function escHtml(v) {
+        return String(v == null ? "" : v)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
       // RPC BRIDGE CLIENT
       let rpcSeq = 0;
       const pendingRpcs = new Map();
@@ -1244,7 +1253,7 @@ export function renderWorkspaceHtml(
           inspectorContent.innerHTML = '<div class="card"><div class="card-title">Structured Task Plan</div><p style="font-size:11px;color:var(--text-secondary);margin:4px 0 0;">Agent-generated DAG plan with explicit approval gates before high-impact tool execution.</p></div>';
         } else if (activeInspectorTab === "files") {
           const repoMap = (boot.instructions && boot.instructions.repoMapPreview) || "Repository map ready.";
-          inspectorContent.innerHTML = '<pre class="card mono" style="font-size:10px;overflow:auto;max-height:300px;white-space:pre-wrap;">' + repoMap.replace(/</g, "&lt;") + '</pre>';
+          inspectorContent.innerHTML = '<pre class="card mono" style="font-size:10px;overflow:auto;max-height:300px;white-space:pre-wrap;">' + escHtml(repoMap) + '</pre>';
         }
       }
 
@@ -1267,28 +1276,29 @@ export function renderWorkspaceHtml(
             verdictStamp.textContent = p.overallVerdict;
             verdictStamp.className = "badge " + (p.overallVerdict === "VERIFIED" ? "badge-verified" : "badge-danger");
           }
-          card.innerHTML = '<div class="card-header"><span class="card-title">Verification Verdict: ' + p.overallVerdict + '</span><span class="badge badge-verified">SHA-256</span></div>' +
-            '<p style="color:var(--text-secondary);font-size:11.5px;margin:2px 0 0;">' + String(p.summary || "").replace(/</g, "&lt;") + '</p>';
+          card.innerHTML = '<div class="card-header"><span class="card-title">Verification Verdict: ' + escHtml(p.overallVerdict) + '</span><span class="badge badge-verified">SHA-256</span></div>' +
+            '<p style="color:var(--text-secondary);font-size:11.5px;margin:2px 0 0;">' + escHtml(p.summary || "") + '</p>';
         } else if (p.type === "approval.required") {
-          card.innerHTML = '<div class="card-header"><span class="card-title">Action Approval Required</span><span class="badge badge-partial">' + p.tier + '</span></div>' +
-            '<p class="mono" style="font-size:11px;margin:4px 0 8px;word-break:break-all;">' + String(p.summary || "").replace(/</g, "&lt;") + '</p>' +
+          const aid = escHtml(p.approvalId);
+          card.innerHTML = '<div class="card-header"><span class="card-title">Action Approval Required</span><span class="badge badge-partial">' + escHtml(p.tier) + '</span></div>' +
+            '<p class="mono" style="font-size:11px;margin:4px 0 8px;word-break:break-all;">' + escHtml(p.summary || "") + '</p>' +
             '<div style="display:flex;gap:6px;">' +
-            '<button type="button" class="btn btn-sm btn-primary" data-approve="' + p.approvalId + '">Approve Once</button>' +
-            '<button type="button" class="btn btn-sm" data-approve-always="' + p.approvalId + '">Always Allow</button>' +
-            '<button type="button" class="btn btn-sm btn-danger" data-reject="' + p.approvalId + '">Reject</button>' +
+            '<button type="button" class="btn btn-sm btn-primary" data-approve="' + aid + '">Approve Once</button>' +
+            '<button type="button" class="btn btn-sm" data-approve-always="' + aid + '">Always Allow</button>' +
+            '<button type="button" class="btn btn-sm btn-danger" data-reject="' + aid + '">Reject</button>' +
             '</div>';
         } else if (p.type === "agent.progress") {
-          card.innerHTML = '<div style="display:flex;align-items:center;gap:6px;"><span class="badge badge-partial mono">#' + env.seq + ' ' + (p.stage || "progress") + '</span><span style="font-size:11px;color:var(--text-secondary);">' + (p.agentId || "agent") + '</span></div>' +
-            '<div style="font-size:12px;margin-top:3px;">' + String(p.summary || p.textDelta || "").replace(/</g, "&lt;") + '</div>';
+          card.innerHTML = '<div style="display:flex;align-items:center;gap:6px;"><span class="badge badge-partial mono">#' + escHtml(env.seq) + ' ' + escHtml(p.stage || "progress") + '</span><span style="font-size:11px;color:var(--text-secondary);">' + escHtml(p.agentId || "agent") + '</span></div>' +
+            '<div style="font-size:12px;margin-top:3px;">' + escHtml(p.summary || p.textDelta || "") + '</div>';
         } else if (p.type === "tool.started") {
-          card.innerHTML = '<div class="card-header"><span class="card-title mono">' + p.toolName + '</span><span class="badge badge-running">RUNNING</span></div>' +
-            '<div class="mono" style="font-size:11px;color:var(--text-secondary);word-break:break-all;">' + String(p.inputSummary || "").replace(/</g, "&lt;") + '</div>';
+          card.innerHTML = '<div class="card-header"><span class="card-title mono">' + escHtml(p.toolName) + '</span><span class="badge badge-running">RUNNING</span></div>' +
+            '<div class="mono" style="font-size:11px;color:var(--text-secondary);word-break:break-all;">' + escHtml(p.inputSummary || "") + '</div>';
         } else if (p.type === "tool.completed") {
-          card.innerHTML = '<div class="card-header"><span class="card-title mono">' + p.toolName + '</span><span class="badge badge-verified">✓ ' + (p.durationMs || 10) + 'ms</span></div>' +
-            '<pre class="mono" style="font-size:10.5px;color:var(--text-secondary);margin:0;max-height:120px;overflow:auto;background:var(--bg-canvas);padding:6px;border-radius:4px;">' + String(p.outputPreview || "Completed").replace(/</g, "&lt;") + '</pre>';
+          card.innerHTML = '<div class="card-header"><span class="card-title mono">' + escHtml(p.toolName) + '</span><span class="badge badge-verified">✓ ' + escHtml(p.durationMs || 10) + 'ms</span></div>' +
+            '<pre class="mono" style="font-size:10.5px;color:var(--text-secondary);margin:0;max-height:120px;overflow:auto;background:var(--bg-canvas);padding:6px;border-radius:4px;">' + escHtml(p.outputPreview || "Completed") + '</pre>';
         } else {
-          card.innerHTML = '<div style="font-size:11px;color:var(--text-muted);">' + p.type + '</div>' +
-            '<div style="font-size:12px;">' + String(p.summary || p.toolName || p.state || "").replace(/</g, "&lt;") + '</div>';
+          card.innerHTML = '<div style="font-size:11px;color:var(--text-muted);">' + escHtml(p.type) + '</div>' +
+            '<div style="font-size:12px;">' + escHtml(p.summary || p.toolName || p.state || "") + '</div>';
         }
 
         streamEl.appendChild(card);
@@ -1305,8 +1315,8 @@ export function renderWorkspaceHtml(
         const userCard = document.createElement("div");
         userCard.className = "card";
         userCard.style.borderColor = "var(--border-strong)";
-        userCard.innerHTML = '<div class="card-header"><strong style="font-size:12px;">Instruction</strong><span class="badge badge-partial mono">' + (modeSelect?.value || "orchestrate") + '</span></div>' +
-          '<div style="font-size:12px;color:var(--text-primary);white-space:pre-wrap;">' + prompt.replace(/</g, "&lt;") + '</div>';
+        userCard.innerHTML = '<div class="card-header"><strong style="font-size:12px;">Instruction</strong><span class="badge badge-partial mono">' + escHtml(modeSelect?.value || "orchestrate") + '</span></div>' +
+          '<div style="font-size:12px;color:var(--text-primary);white-space:pre-wrap;">' + escHtml(prompt) + '</div>';
         streamEl.appendChild(userCard);
         streamEl.scrollTop = streamEl.scrollHeight;
 
@@ -1371,10 +1381,10 @@ export function renderWorkspaceHtml(
           if (!list) return;
           list.innerHTML = harnesses.map(h =>
             '<div class="card">' +
-            '<div class="card-header"><span class="card-title">' + h.name + '</span><span class="badge badge-verified">Active</span></div>' +
-            '<div style="font-size:11.5px;color:var(--text-secondary);">' + h.role + '</div>' +
+            '<div class="card-header"><span class="card-title">' + escHtml(h.name) + '</span><span class="badge badge-verified">Active</span></div>' +
+            '<div style="font-size:11.5px;color:var(--text-secondary);">' + escHtml(h.role) + '</div>' +
             '<div class="mono" style="font-size:10.5px;color:var(--text-muted);display:flex;gap:8px;margin-top:2px;">' +
-            '<span>Model: ' + (h.model || "nemotron-70b") + '</span> · <span>FS: ' + h.permissions.filesystem + '</span> · <span>Tools: ' + h.tools.length + '</span>' +
+            '<span>Model: ' + escHtml(h.model || "nemotron-70b") + '</span> · <span>FS: ' + escHtml(h.permissions.filesystem) + '</span> · <span>Tools: ' + escHtml(h.tools.length) + '</span>' +
             '</div></div>'
           ).join("");
         } else if (v === "skills") {
@@ -1387,10 +1397,10 @@ export function renderWorkspaceHtml(
           }
           list.innerHTML = skills.map(s =>
             '<div class="card">' +
-            '<div class="card-header"><span class="card-title">' + s.name + '</span>' +
-            '<span class="badge ' + (s.trustState === "quarantined" ? "badge-danger" : "badge-verified") + '">' + (s.trustState || "trusted") + ' · ' + (s.scope || "workspace") + '</span></div>' +
-            '<div style="color:var(--text-secondary);font-size:11.5px;">' + (s.description || "No description provided.") + '</div>' +
-            (s.trustState === "quarantined" ? '<button type="button" class="btn btn-sm btn-primary" style="margin-top:4px;" data-approve-skill="' + s.name + '">Review &amp; Trust (SHA-256)</button>' : '') +
+            '<div class="card-header"><span class="card-title">' + escHtml(s.name) + '</span>' +
+            '<span class="badge ' + (s.trustState === "quarantined" ? "badge-danger" : "badge-verified") + '">' + escHtml(s.trustState || "trusted") + ' · ' + escHtml(s.scope || "workspace") + '</span></div>' +
+            '<div style="color:var(--text-secondary);font-size:11.5px;">' + escHtml(s.description || "No description provided.") + '</div>' +
+            (s.trustState === "quarantined" ? '<button type="button" class="btn btn-sm btn-primary" style="margin-top:4px;" data-approve-skill="' + escHtml(s.name) + '">Review &amp; Trust (SHA-256)</button>' : '') +
             '</div>'
           ).join("");
         } else if (v === "mcp") {
@@ -1399,11 +1409,11 @@ export function renderWorkspaceHtml(
           if (!list) return;
           list.innerHTML = presets.map(m =>
             '<div class="card">' +
-            '<div class="card-header"><span class="card-title">' + m.name + '</span>' +
-            '<span class="badge badge-partial mono">' + m.template.transport + '</span></div>' +
-            '<div style="color:var(--text-secondary);font-size:11.5px;">' + m.description + '</div>' +
+            '<div class="card-header"><span class="card-title">' + escHtml(m.name) + '</span>' +
+            '<span class="badge badge-partial mono">' + escHtml(m.template.transport) + '</span></div>' +
+            '<div style="color:var(--text-secondary);font-size:11.5px;">' + escHtml(m.description) + '</div>' +
             '<div style="display:flex;gap:6px;align-items:center;margin-top:4px;">' +
-            '<button type="button" class="btn btn-sm" data-test-mcp="' + m.name + '">Test Ping</button>' +
+            '<button type="button" class="btn btn-sm" data-test-mcp="' + escHtml(m.name) + '">Test Ping</button>' +
             '<span style="font-size:10px;color:var(--text-muted);margin-left:auto;">Secrets: Scrubbed</span>' +
             '</div></div>'
           ).join("");
@@ -1414,8 +1424,8 @@ export function renderWorkspaceHtml(
           list.innerHTML = exts.length === 0
             ? '<div class="card"><div class="card-title">Extension Host Ready</div><p style="color:var(--text-secondary);font-size:11.5px;margin:2px 0 0;">No third-party plugins installed yet. Plugins installed in ~/.terminus/plugins run isolated with memory and execution timeout caps.</p></div>'
             : exts.map(e =>
-              '<div class="card"><div class="card-header"><span class="card-title">' + e.manifest.name + '</span><span class="badge badge-verified">' + e.status + '</span></div>' +
-              '<p style="color:var(--text-secondary);font-size:11.5px;margin:2px 0 0;">' + (e.manifest.description || "") + '</p></div>'
+              '<div class="card"><div class="card-header"><span class="card-title">' + escHtml(e.manifest.name) + '</span><span class="badge badge-verified">' + escHtml(e.status) + '</span></div>' +
+              '<p style="color:var(--text-secondary);font-size:11.5px;margin:2px 0 0;">' + escHtml(e.manifest.description || "") + '</p></div>'
             ).join("");
         } else if (v === "security") {
           const list = document.getElementById("security-list");
@@ -1424,10 +1434,10 @@ export function renderWorkspaceHtml(
           list.innerHTML = audits.slice(0, 15).map(a =>
             '<div class="card" style="padding:6px 8px;">' +
             '<div style="display:flex;justify-content:space-between;align-items:center;">' +
-            '<span class="mono" style="font-size:11px;font-weight:600;">' + a.action_kind + '</span>' +
-            '<span class="badge ' + (a.verdict === "approved" ? "badge-verified" : "badge-danger") + '">' + a.verdict + '</span>' +
+            '<span class="mono" style="font-size:11px;font-weight:600;">' + escHtml(a.action_kind) + '</span>' +
+            '<span class="badge ' + (a.verdict === "approved" ? "badge-verified" : "badge-danger") + '">' + escHtml(a.verdict) + '</span>' +
             '</div>' +
-            '<div class="mono" style="color:var(--text-secondary);font-size:10.5px;margin-top:2px;word-break:break-all;">' + a.target + '</div>' +
+            '<div class="mono" style="color:var(--text-secondary);font-size:10.5px;margin-top:2px;word-break:break-all;">' + escHtml(a.target) + '</div>' +
             '</div>'
           ).join("");
         } else if (v === "redteam") {
@@ -1465,12 +1475,12 @@ export function renderWorkspaceHtml(
           if (!list) return;
           list.innerHTML = providers.map(p =>
             '<div class="card">' +
-            '<div class="card-header"><span class="card-title">' + p.displayName + '</span>' +
+            '<div class="card-header"><span class="card-title">' + escHtml(p.displayName) + '</span>' +
             '<span class="badge ' + (p.hasApiKeyConfigured ? "badge-verified" : "badge-partial") + '">' + (p.hasApiKeyConfigured ? "Key Configured" : "Key Missing") + '</span></div>' +
-            '<div class="mono" style="font-size:11px;color:var(--text-secondary);">Default: ' + p.defaultModel + '</div>' +
+            '<div class="mono" style="font-size:11px;color:var(--text-secondary);">Default: ' + escHtml(p.defaultModel) + '</div>' +
             '<div style="display:flex;gap:6px;align-items:center;margin-top:4px;">' +
-            '<input type="password" class="form-input" style="flex:1;font-size:11px;" placeholder="Update API Key" id="key-input-' + p.provider + '" />' +
-            '<button type="button" class="btn btn-sm btn-primary" data-save-key="' + p.provider + '">Save</button>' +
+            '<input type="password" class="form-input" style="flex:1;font-size:11px;" placeholder="Update API Key" id="key-input-' + escHtml(p.provider) + '" />' +
+            '<button type="button" class="btn btn-sm btn-primary" data-save-key="' + escHtml(p.provider) + '">Save</button>' +
             '</div></div>'
           ).join("");
         } else if (v === "rules") {
@@ -1479,10 +1489,10 @@ export function renderWorkspaceHtml(
           if (!list) return;
           list.innerHTML = layers.map((l, idx) =>
             '<div class="card">' +
-            '<div class="card-header"><span class="card-title">Level ' + l.priority + ': ' + l.label + '</span><span class="badge badge-partial mono">' + l.scope + '</span></div>' +
-            '<div class="mono" style="font-size:10px;color:var(--text-muted);word-break:break-all;">' + l.path + '</div>' +
-            (l.editable ? '<textarea class="form-input mono" style="min-height:90px;font-size:11px;margin-top:4px;" id="rule-content-' + idx + '">' + (l.content || "").replace(/</g, "&lt;") + '</textarea>' +
-            '<div style="display:flex;justify-content:flex-end;margin-top:4px;"><button type="button" class="btn btn-sm btn-primary" data-save-rule="' + idx + '" data-rule-path="' + l.path + '">Save File</button></div>' : '<pre class="mono" style="font-size:10px;color:var(--text-secondary);background:var(--bg-canvas);padding:6px;border-radius:4px;max-height:80px;overflow:auto;margin:4px 0 0;">' + (l.content || "").replace(/</g, "&lt;") + '</pre>') +
+            '<div class="card-header"><span class="card-title">Level ' + escHtml(l.priority) + ': ' + escHtml(l.label) + '</span><span class="badge badge-partial mono">' + escHtml(l.scope) + '</span></div>' +
+            '<div class="mono" style="font-size:10px;color:var(--text-muted);word-break:break-all;">' + escHtml(l.path) + '</div>' +
+            (l.editable ? '<textarea class="form-input mono" style="min-height:90px;font-size:11px;margin-top:4px;" id="rule-content-' + idx + '">' + escHtml(l.content || "") + '</textarea>' +
+            '<div style="display:flex;justify-content:flex-end;margin-top:4px;"><button type="button" class="btn btn-sm btn-primary" data-save-rule="' + idx + '" data-rule-path="' + escHtml(l.path) + '">Save File</button></div>' : '<pre class="mono" style="font-size:10px;color:var(--text-secondary);background:var(--bg-canvas);padding:6px;border-radius:4px;max-height:80px;overflow:auto;margin:4px 0 0;">' + escHtml(l.content || "") + '</pre>') +
             '</div>'
           ).join("");
         } else if (v === "analytics") {
@@ -1584,16 +1594,16 @@ export function renderWorkspaceHtml(
           const list = document.getElementById("redteam-list");
           if (list) {
             list.innerHTML =
-              '<div class="card"><div class="card-header"><span class="card-title">Campaign: ' + String(report.campaignId || "CAMP").replace(/</g, "&lt;") + '</span><span class="badge ' + (exploited === 0 ? "badge-verified" : "badge-danger") + '">' + (exploited === 0 ? "PASSED" : "VULNERABILITIES DETECTED") + '</span></div>' +
-              '<div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Exploited: ' + exploited + ' / ' + total + ' (' + blockRate + '% Blocked · ' + skipped + ' Dead-Ends Skipped)</div>' +
+              '<div class="card"><div class="card-header"><span class="card-title">Campaign: ' + escHtml(report.campaignId || "CAMP") + '</span><span class="badge ' + (exploited === 0 ? "badge-verified" : "badge-danger") + '">' + (exploited === 0 ? "PASSED" : "VULNERABILITIES DETECTED") + '</span></div>' +
+              '<div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Exploited: ' + exploited + ' / ' + total + ' (' + escHtml(blockRate) + '% Blocked · ' + skipped + ' Dead-Ends Skipped)</div>' +
               '</div>' +
               findings.map(r =>
                 '<div class="card" style="padding:8px 10px;">' +
                 '<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">' +
-                '<span class="mono" style="font-size:11px;font-weight:600;">' + String(r.hypothesisId || "").replace(/</g, "&lt;") + ' (' + String(r.category || "").replace(/</g, "&lt;") + ')</span>' +
-                '<span class="badge ' + (r.outcome === "exploited" ? "badge-danger" : "badge-verified") + '">' + String(r.outcome || "blocked").toUpperCase() + '</span>' +
+                '<span class="mono" style="font-size:11px;font-weight:600;">' + escHtml(r.hypothesisId || "") + ' (' + escHtml(r.category || "") + ')</span>' +
+                '<span class="badge ' + (r.outcome === "exploited" ? "badge-danger" : "badge-verified") + '">' + escHtml(String(r.outcome || "blocked").toUpperCase()) + '</span>' +
                 '</div>' +
-                '<div style="font-size:11px;color:var(--text-secondary);margin-top:3px;word-break:break-word;">' + String(r.observedExecutionTrace || "").replace(/</g, "&lt;") + '</div>' +
+                '<div style="font-size:11px;color:var(--text-secondary);margin-top:3px;word-break:break-word;">' + escHtml(r.observedExecutionTrace || "") + '</div>' +
                 '</div>'
               ).join("");
           }
@@ -1601,9 +1611,9 @@ export function renderWorkspaceHtml(
           if (btList && report.blueTeamReport) {
             const bt = report.blueTeamReport;
             btList.innerHTML =
-              '<div class="card"><div class="card-header"><span class="card-title">Skeptic &amp; Remediation Summary</span><span class="badge badge-verified">' + bt.patchesProposed + ' Patches</span></div>' +
-              '<div style="font-size:11px;color:var(--text-secondary);">' + String(bt.remediationSummary || "").replace(/</g, "&lt;") + '</div>' +
-              '<div class="mono" style="font-size:10.5px;color:var(--text-muted);margin-top:4px;">Confirmed: ' + bt.findingsAnalyzed + ' · Skeptic Filtered: ' + Number(bt.skepticRejectedCount || 0) + ' · Regressions Prevented: ' + bt.regressionsPrevented + '</div>' +
+              '<div class="card"><div class="card-header"><span class="card-title">Skeptic &amp; Remediation Summary</span><span class="badge badge-verified">' + escHtml(bt.patchesProposed) + ' Patches</span></div>' +
+              '<div style="font-size:11px;color:var(--text-secondary);">' + escHtml(bt.remediationSummary || "") + '</div>' +
+              '<div class="mono" style="font-size:10.5px;color:var(--text-muted);margin-top:4px;">Confirmed: ' + escHtml(bt.findingsAnalyzed) + ' · Skeptic Filtered: ' + Number(bt.skepticRejectedCount || 0) + ' · Regressions Prevented: ' + escHtml(bt.regressionsPrevented) + '</div>' +
               '</div>';
           }
         } catch (err) {
@@ -1622,9 +1632,9 @@ export function renderWorkspaceHtml(
           const list = document.getElementById("antirea-list");
           if (list && res.manifest) {
             list.innerHTML =
-              '<div class="card"><div class="card-header"><span class="card-title">Signed Release: ' + res.manifest.releaseId + '</span><span class="badge badge-verified">' + res.manifest.verificationVerdict + '</span></div>' +
-              '<div class="mono" style="font-size:10.5px;color:var(--text-muted);word-break:break-all;margin-top:2px;">Root Hash: sha256:' + res.manifest.rootHash + '</div>' +
-              '<div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">Protected Files (' + res.manifest.artifacts.length + ') emitted to <span class="mono">dist-protected/</span></div>' +
+              '<div class="card"><div class="card-header"><span class="card-title">Signed Release: ' + escHtml(res.manifest.releaseId) + '</span><span class="badge badge-verified">' + escHtml(res.manifest.verificationVerdict) + '</span></div>' +
+              '<div class="mono" style="font-size:10.5px;color:var(--text-muted);word-break:break-all;margin-top:2px;">Root Hash: sha256:' + escHtml(res.manifest.rootHash) + '</div>' +
+              '<div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">Protected Files (' + escHtml(res.manifest.artifacts.length) + ') emitted to <span class="mono">dist-protected/</span></div>' +
               '</div>';
           }
         } catch (err) {

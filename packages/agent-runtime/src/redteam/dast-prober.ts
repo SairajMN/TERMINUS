@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { sharedTargetLimiter } from "@terminus/tool-runtime";
 import type { EvidenceLedger } from "../ledger";
 import type { AttackExecutionResult } from "./types";
@@ -190,7 +190,7 @@ export class LoopbackDastProber {
   }
 
   async probeXss(baseUrl: string, routePath: string, param = "q"): Promise<DastProbeOutcome> {
-    const nonce = `trmnst_${Math.random().toString(36).slice(2, 10)}`;
+    const nonce = `trmnst_${randomBytes(6).toString("hex")}`;
     const payload = `<${nonce}>`;
     const url = buildProbeUrl(baseUrl, routePath, param, payload);
     const res = await this.fetchBounded(url);
