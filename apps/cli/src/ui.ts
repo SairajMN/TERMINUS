@@ -91,7 +91,7 @@ export const firstRun = (width = fitWidth(), height = fitHeight()): string => {
   row(
     4,
     "",
-    "--sessions   --resume <id>   --replay <id>   --debt   --max-tokens <n>   --version",
+    "--sessions   --resume <id>   --replay <id>   --debt   --max-tokens <n>   --version   --update",
     muted,
   );
   if (height >= 18) {

@@ -5,6 +5,7 @@ import {
   type AgentClaimReport,
   type AgentSession,
   BaseCodingHarness,
+  BlueTeamEngine,
   BUILTIN_HARNESSES,
   createAgent,
   type ExecutionGate,
@@ -1587,11 +1588,29 @@ export class TerminusRuntimeBridge {
     };
   }
 
-  runRedTeamPass(workspaceRoot?: string) {
+  async runRedTeamPass(workspaceRoot?: string, dastUrl?: string) {
     const root = workspaceRoot ?? this.defaultWorkspaceRoot;
     const engine = new RedTeamEngine(root);
+    const blueTeam = new BlueTeamEngine(root);
     const perm = new PermissionEngine({ workspaceRoot: root, mode: "act" });
-    return engine.runCampaign(perm);
+    const campaign = await engine.runCampaign(perm, undefined, {
+      worldState: this.orchestrator.securityWorldState,
+      dast: dastUrl ? { baseUrl: dastUrl } : undefined,
+    });
+    const blueTeamReport =
+      campaign.exploitedCount > 0 ? blueTeam.remediate(campaign.findings) : blueTeam.remediate([]);
+    const reflection = this.orchestrator.reflection.reflect({
+      taskId: campaign.campaignId,
+      redTeamReport: campaign,
+      blueTeamReport,
+      evolution: this.orchestrator.evolution,
+    });
+    return {
+      ...campaign,
+      blueTeamReport,
+      reflection,
+      resolvedVectorsTotal: this.orchestrator.securityWorldState.getResolvedVectors().length,
+    };
   }
 
   runAntiREAHarden(workspaceRoot?: string, options?: ProtectionOptions) {

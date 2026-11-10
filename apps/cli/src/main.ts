@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { execSync } from "node:child_process";
+import { execSync, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
@@ -83,6 +83,7 @@ interface CliArgs {
   maxTokens?: number;
   maxCostUsd?: number;
   version: boolean;
+  update: boolean;
 }
 
 const MODES: Mode[] = ["ask", "plan", "audit", "act", "auto"];
@@ -165,6 +166,7 @@ const parseArgs = (argv: string[]): CliArgs => {
     mcp: false,
     extensions: false,
     version: false,
+    update: false,
   };
   const words: string[] = [];
   for (let i = 0; i < argv.length; i++) {
@@ -236,6 +238,9 @@ const parseArgs = (argv: string[]): CliArgs => {
       case "--version":
       case "-v":
         args.version = true;
+        break;
+      case "--update":
+        args.update = true;
         break;
       case "--dir":
         args.dir = argv[++i] ?? ".";
@@ -357,6 +362,35 @@ const main = async (): Promise<number> => {
       `  │    ██  ■ │  Evidence Ledger · Skills Studio · MCP Client · Plugin Host\n`,
     );
     process.stdout.write(`  └──      ──┘\n`);
+    return 0;
+  }
+  if (args.update) {
+    process.stdout.write(`  TERMINUS current version: v${VERSION}\n`);
+    try {
+      const res = await fetch("https://registry.npmjs.org/terminus-agent/latest", {
+        signal: AbortSignal.timeout(4000),
+      });
+      if (res.ok) {
+        const meta = (await res.json()) as { version?: string };
+        const latest = meta.version ?? "unknown";
+        process.stdout.write(`  Latest npm version:       v${latest}\n`);
+      } else {
+        process.stdout.write(`  npm registry check returned HTTP ${res.status}\n`);
+      }
+    } catch {
+      process.stdout.write("  Could not reach npm registry (offline or firewall).\n");
+    }
+    if (args.yes) {
+      process.stdout.write("  Running: npm install -g terminus-agent@latest\n");
+      const out = spawnSync("npm", ["install", "-g", "terminus-agent@latest"], {
+        stdio: "inherit",
+      });
+      return out.status ?? 1;
+    }
+    process.stdout.write("\n  Update via CLI:\n");
+    process.stdout.write("    npm install -g terminus-agent@latest\n");
+    process.stdout.write("    # or: bun add -g terminus-agent@latest\n");
+    process.stdout.write("    # or run automatically: terminus --update --yes\n\n");
     return 0;
   }
   const repl = args.help

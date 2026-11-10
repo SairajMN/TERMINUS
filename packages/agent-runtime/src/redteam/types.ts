@@ -28,15 +28,33 @@ export type ApplicationSecurityCategory =
 
 export type AttackCategory = AgenticSecurityCategory | ApplicationSecurityCategory;
 
+export type AttackSurface =
+  | "filesystem"
+  | "terminal"
+  | "prompt"
+  | "mcp"
+  | "context"
+  | "inter_agent"
+  | "network"
+  | "api";
+
 export interface AttackHypothesis {
   id: string;
   category: AttackCategory;
   agentRole: string;
   objective: string;
   threatModel: string;
-  targetSurface: "filesystem" | "terminal" | "prompt" | "mcp" | "context" | "network" | "api";
+  targetSurface: AttackSurface;
   payload: string;
   expectedDefensiveControl: string;
+  targetEndpoint?: string;
+}
+
+export interface HttpTraceSummary {
+  url: string;
+  method: string;
+  status: number;
+  indicator: string;
 }
 
 export interface AttackExecutionResult {
@@ -50,6 +68,18 @@ export interface AttackExecutionResult {
   reproductionScript: string;
   evidenceRecordId?: string;
   explanation: string;
+  httpTrace?: HttpTraceSummary;
+  confidence?: number;
+  targetEndpoint?: string;
+}
+
+export interface ResolvedVector {
+  target: string;
+  category: AttackCategory;
+  vector: string;
+  status: "resolved" | "active";
+  reason: string;
+  recordedAt: number;
 }
 
 export interface RedTeamCampaignReport {
@@ -62,4 +92,6 @@ export interface RedTeamCampaignReport {
   exploitedCount: number;
   attackSuccessRate: number; // 0.0 to 1.0
   findings: AttackExecutionResult[];
+  skippedResolvedVectors?: number;
+  dastFindingsCount?: number;
 }

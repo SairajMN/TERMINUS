@@ -229,6 +229,9 @@ export async function dispatchBridgeRpc(
     case "runRedTeamPass":
       return bridge.runRedTeamPass(
         typeof params.workspaceRoot === "string" ? params.workspaceRoot : undefined,
+        typeof params.dastUrl === "string" && params.dastUrl.trim()
+          ? params.dastUrl.trim()
+          : undefined,
       );
     case "runAntiREAHarden":
       return bridge.runAntiREAHarden(

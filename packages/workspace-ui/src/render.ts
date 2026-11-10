@@ -816,12 +816,15 @@ export function renderWorkspaceHtml(
 
       <!-- 7. RED TEAM LAB VIEW -->
       <section id="view-redteam" class="view-container" aria-label="Red Team Lab">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
           <div>
             <strong style="font-size:13px;">Autonomous Red Team Campaign</strong>
-            <div style="font-size:11px;color:var(--text-secondary);">Proactive adversarial testing across OWASP Agentic (ASI01–10) &amp; AppSec (A01–10)</div>
+            <div style="font-size:11px;color:var(--text-secondary);">Execution-grounded testing across Agentic (ASI01–10), AppSec (A01–10) &amp; loopback HTTP DAST</div>
           </div>
           <button type="button" id="run-redteam-btn" class="btn btn-sm btn-primary">Run Attack Campaign</button>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="text" id="redteam-dast-url" class="form-input mono" style="flex:1;font-size:11px;" placeholder="Optional loopback DAST target (e.g. http://127.0.0.1:3000)" />
         </div>
         <div id="redteam-list" style="display:flex;flex-direction:column;gap:8px;"></div>
       </section>
@@ -1567,25 +1570,41 @@ export function renderWorkspaceHtml(
 
       document.getElementById("run-redteam-btn")?.addEventListener("click", async () => {
         const btn = document.getElementById("run-redteam-btn");
+        const dastInput = document.getElementById("redteam-dast-url");
+        const dastUrl = dastInput && dastInput.value ? dastInput.value.trim() : "";
         if (btn) { btn.disabled = true; btn.textContent = "Running Attacks..."; }
         try {
-          const report = await callRpc("runRedTeamPass", {});
-          showToast("Red Team Campaign Complete: " + report.attacksExploited + " attacks tested");
+          const report = await callRpc("runRedTeamPass", dastUrl ? { dastUrl } : {});
+          const findings = Array.isArray(report.findings) ? report.findings : [];
+          const exploited = Number(report.exploitedCount || 0);
+          const total = Number(report.totalHypothesesTested || findings.length);
+          const skipped = Number(report.skippedResolvedVectors || 0);
+          const blockRate = total > 0 ? ((1 - Number(report.attackSuccessRate || 0)) * 100).toFixed(1) : "100.0";
+          showToast("Red Team Campaign Complete: " + total + " vectors tested (" + exploited + " exploited)");
           const list = document.getElementById("redteam-list");
-          if (list && report.results) {
+          if (list) {
             list.innerHTML =
-              '<div class="card"><div class="card-header"><span class="card-title">Campaign Result: ' + report.campaignId + '</span><span class="badge ' + (report.attacksExploited === 0 ? "badge-verified" : "badge-danger") + '">' + (report.attacksExploited === 0 ? "PASSED" : "VULNERABILITIES DETECTED") + '</span></div>' +
-              '<div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Exploited: ' + report.attacksExploited + ' / ' + report.attacksAttempted + ' (' + ((1 - report.attackSuccessRate) * 100).toFixed(1) + '% Defensive Block Rate)</div>' +
+              '<div class="card"><div class="card-header"><span class="card-title">Campaign: ' + String(report.campaignId || "CAMP").replace(/</g, "&lt;") + '</span><span class="badge ' + (exploited === 0 ? "badge-verified" : "badge-danger") + '">' + (exploited === 0 ? "PASSED" : "VULNERABILITIES DETECTED") + '</span></div>' +
+              '<div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Exploited: ' + exploited + ' / ' + total + ' (' + blockRate + '% Blocked · ' + skipped + ' Dead-Ends Skipped)</div>' +
               '</div>' +
-              report.results.map(r =>
+              findings.map(r =>
                 '<div class="card" style="padding:8px 10px;">' +
-                '<div style="display:flex;justify-content:space-between;align-items:center;">' +
-                '<span class="mono" style="font-size:11px;font-weight:600;">' + r.hypothesisId + ': ' + r.name + '</span>' +
-                '<span class="badge ' + (r.verdict === "EXPLOITED" ? "badge-danger" : "badge-verified") + '">' + r.verdict + '</span>' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">' +
+                '<span class="mono" style="font-size:11px;font-weight:600;">' + String(r.hypothesisId || "").replace(/</g, "&lt;") + ' (' + String(r.category || "").replace(/</g, "&lt;") + ')</span>' +
+                '<span class="badge ' + (r.outcome === "exploited" ? "badge-danger" : "badge-verified") + '">' + String(r.outcome || "blocked").toUpperCase() + '</span>' +
                 '</div>' +
-                '<div style="font-size:11px;color:var(--text-secondary);margin-top:3px;">' + r.actualEffect + '</div>' +
+                '<div style="font-size:11px;color:var(--text-secondary);margin-top:3px;word-break:break-word;">' + String(r.observedExecutionTrace || "").replace(/</g, "&lt;") + '</div>' +
                 '</div>'
               ).join("");
+          }
+          const btList = document.getElementById("blueteam-list");
+          if (btList && report.blueTeamReport) {
+            const bt = report.blueTeamReport;
+            btList.innerHTML =
+              '<div class="card"><div class="card-header"><span class="card-title">Skeptic &amp; Remediation Summary</span><span class="badge badge-verified">' + bt.patchesProposed + ' Patches</span></div>' +
+              '<div style="font-size:11px;color:var(--text-secondary);">' + String(bt.remediationSummary || "").replace(/</g, "&lt;") + '</div>' +
+              '<div class="mono" style="font-size:10.5px;color:var(--text-muted);margin-top:4px;">Confirmed: ' + bt.findingsAnalyzed + ' · Skeptic Filtered: ' + Number(bt.skepticRejectedCount || 0) + ' · Regressions Prevented: ' + bt.regressionsPrevented + '</div>' +
+              '</div>';
           }
         } catch (err) {
           showToast("Red Team error: " + err.message);

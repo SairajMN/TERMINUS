@@ -29,8 +29,11 @@ import {
   type TrajectorySignals,
 } from "./harness";
 import { EvidenceLedger } from "./ledger";
+import type { DastRouteSpec } from "./redteam/dast-prober";
 import { RedTeamEngine } from "./redteam/engine";
+import { FindingWorldState } from "./redteam/finding-graph";
 import type { RedTeamCampaignReport } from "./redteam/types";
+import { ReflectionEngine, type RunReflection } from "./reflection";
 import { scanFiles } from "./sast";
 import { type OrchestratorVerdictReport, VerificationEngine } from "./verification-engine";
 import { verifyEditedFile } from "./verifier";
@@ -79,6 +82,10 @@ export interface OrchestrationOptions {
   maxReworkCycles?: number;
   runAdversarialPass?: boolean;
   runRedTeamPass?: boolean;
+  dast?: {
+    baseUrl: string;
+    routes?: readonly DastRouteSpec[];
+  };
   trajectorySignals?: TrajectorySignals;
   signal?: AbortSignal;
   onEvent?: (event: OrchestratorProgressEvent) => void;
@@ -97,6 +104,7 @@ export interface OrchestrationResult {
   readonly reworkCyclesUsed: number;
   readonly redTeamReport?: RedTeamCampaignReport;
   readonly blueTeamReport?: BlueTeamReport;
+  readonly reflection?: RunReflection;
 }
 
 const toSpecs = (tools: ToolDefinition<never>[]) =>
@@ -122,15 +130,19 @@ export class MasterOrchestrator {
   readonly router: HarnessRouter;
   readonly verifier: VerificationEngine;
   readonly evolution: HarnessEvolutionEngine;
+  readonly reflection: ReflectionEngine;
+  readonly securityWorldState = new FindingWorldState();
 
   constructor(options?: {
     router?: HarnessRouter;
     verifier?: VerificationEngine;
     evolution?: HarnessEvolutionEngine;
+    reflection?: ReflectionEngine;
   }) {
     this.router = options?.router ?? new HarnessRouter();
     this.verifier = options?.verifier ?? new VerificationEngine();
     this.evolution = options?.evolution ?? new HarnessEvolutionEngine();
+    this.reflection = options?.reflection ?? new ReflectionEngine();
   }
 
   /**
@@ -587,6 +599,7 @@ export class MasterOrchestrator {
 
     let redTeamReport: RedTeamCampaignReport | undefined;
     let blueTeamReport: BlueTeamReport | undefined;
+    let reflection: RunReflection | undefined;
 
     if (options.runRedTeamPass) {
       const redTeam = new RedTeamEngine(options.workspaceRoot);
@@ -596,10 +609,19 @@ export class MasterOrchestrator {
         mode: "act",
       });
 
-      redTeamReport = await redTeam.runCampaign(permEngine, ledger);
+      redTeamReport = await redTeam.runCampaign(permEngine, ledger, {
+        worldState: this.securityWorldState,
+        dast: options.dast,
+      });
       if (redTeamReport.exploitedCount > 0) {
         blueTeamReport = blueTeam.remediate(redTeamReport.findings, ledger);
       }
+      reflection = this.reflection.reflect({
+        taskId,
+        redTeamReport,
+        blueTeamReport,
+        evolution: this.evolution,
+      });
     }
 
     return {
@@ -613,6 +635,7 @@ export class MasterOrchestrator {
       reworkCyclesUsed,
       redTeamReport,
       blueTeamReport,
+      reflection,
     };
   }
 }

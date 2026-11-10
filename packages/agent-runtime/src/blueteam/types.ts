@@ -9,6 +9,13 @@ export interface VulnerabilityFinding {
   affectedComponent: string;
   sourceAttackId?: string;
   reproductionSteps: string;
+  evidenceRecordId?: string;
+}
+
+export interface SkepticDecision {
+  hypothesisId: string;
+  confirmed: boolean;
+  reason: string;
 }
 
 export interface RootCauseAnalysis {
@@ -18,7 +25,8 @@ export interface RootCauseAnalysis {
     | "unvalidated_input"
     | "untrusted_injection"
     | "missing_boundary"
-    | "dependency_flaw";
+    | "dependency_flaw"
+    | "auth_misconfiguration";
   rootCauseDescription: string;
   defenseRecommendation: string;
   mustNotWeakenExistingGates: boolean;
@@ -36,6 +44,8 @@ export interface RemediationPatch {
 export interface BlueTeamReport {
   timestamp: number;
   findingsAnalyzed: number;
+  skepticRejectedCount?: number;
+  skepticDecisions?: SkepticDecision[];
   rootCausesIdentified: number;
   patchesProposed: number;
   patchesApplied: number;
